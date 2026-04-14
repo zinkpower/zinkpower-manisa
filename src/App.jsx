@@ -1537,4 +1537,4 @@ export default function App(){
       {views[mod]||<div style={{color:GR}}>{t.no_data}</div>}
     </div>
   </div>;
-}
+};
