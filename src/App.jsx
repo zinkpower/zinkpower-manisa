@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { P, GR, LT, GN, YL, RD, CORE, T,SCHED, DEF} from '../data/data';
 
 // ── Supabase ──────────────────────────────────────────────────
 const supabase = createClient(
@@ -7,16 +8,7 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-// ── Farben / Renkler ─────────────────────────────────────────
-const P='#283898', GR='#575756', LT='#dde3f5', GN='#27ae60', YL='#e67e22', RD='#e74c3c';
 
-// ── Nutzer / Kullanıcılar ─────────────────────────────────────
-const CORE=[
-  {id:'peter',   name:'Peter Siemund', role:'admin'},
-  {id:'alper',   name:'Alper Bulca',   role:'admin'},
-  {id:'karsten', name:'Karsten Köhler',role:'approver'},
-  {id:'felix',   name:'Felix Holbe',   role:'approver'},
-];
 
 function getInit(name){
   const p=(name||'?').trim().split(/\s+/);
@@ -24,81 +16,7 @@ function getInit(name){
 }
 
 // ── Übersetzungen / Çeviriler ─────────────────────────────────
-const T={
-  de:{login:'Anmelden',sel:'Nutzer wählen',logout:'Abmelden',save:'Speichern',add:'Hinzufügen',
-    cancel:'Abbrechen',approve:'Freigeben',reject:'Ablehnen',review:'Prüfen',edit:'Bearbeiten',
-    dash:'Übersicht',schedule:'Bauzeitenplan',contracts:'Verträge',co:'Nachträge',
-    approvals:'Freigaben',issues:'Mängel',diary:'Bautagebuch',docs:'Dokumente',
-    contacts:'Kontakte',gallery:'Fotos',suppliers:'Lieferanten',budget:'Budget',
-    onTrack:'Im Plan',warning:'Beobachten',critical:'Eingriff nötig',
-    open:'Offen',inProgress:'In Bearbeitung',resolved:'Behoben',
-    submitted:'Eingereicht',inReview:'In Prüfung',approved:'Freigegeben',rejected:'Abgelehnt',
-    active:'Aktiv',ordered:'Bestellt',delivered:'Geliefert',
-    no_data:'Keine Daten',loading:'Lade Wetterdaten…',new_entry:'Neuer Eintrag',
-    upload:'Foto hochladen',date:'Datum',name:'Name',desc:'Beschreibung',
-    amount:'Betrag (€)',comment:'Kommentar',title:'Titel',notes:'Notizen',
-    contractor:'Auftragnehmer',phase:'Phase',planned:'Geplant',actual:'Ist',
-    start:'Start',end:'Ende',status:'Status',priority:'Priorität',
-    high:'Hoch',medium:'Mittel',low:'Niedrig',assigned:'Zugewiesen',
-    phone:'Telefon',email:'E-Mail',role:'Rolle',company:'Firma',
-    material:'Material',supplier:'Lieferant',quantity:'Menge',unit:'Einheit',
-    expected:'Erwartet',version:'Version',category:'Kategorie',uploaded:'Hochgeladen von',
-    workers:'Arbeiter',work_done:'Geleistete Arbeiten',special:'Besonderheiten',
-    total:'Gesamtbudget',committed:'Gebunden',spent:'Abgerufen',remaining:'Verbleibend',
-    pname:'Projektname',loc:'Standort',pstart:'Beginn',pend:'Geplantes Ende',type:'Typ'},
-  tr:{login:'Giriş Yap',sel:'Kullanıcı Seç',logout:'Çıkış',save:'Kaydet',add:'Ekle',
-    cancel:'İptal',approve:'Onayla',reject:'Reddet',review:'İncele',edit:'Düzenle',
-    dash:'Genel Bakış',schedule:'İnşaat Takvimi',contracts:'Sözleşmeler',co:'Ek İşler',
-    approvals:'Onaylar',issues:'Sorunlar',diary:'Şantiye Günlüğü',docs:'Belgeler',
-    contacts:'Kişiler',gallery:'Fotoğraflar',suppliers:'Tedarikçiler',budget:'Bütçe',
-    onTrack:'Planlamada',warning:'İzleniyor',critical:'Müdahale Gerekli',
-    open:'Açık',inProgress:'Devam Ediyor',resolved:'Çözüldü',
-    submitted:'Gönderildi',inReview:'İncelemede',approved:'Onaylandı',rejected:'Reddedildi',
-    active:'Aktif',ordered:'Sipariş Edildi',delivered:'Teslim Edildi',
-    no_data:'Veri yok',loading:'Hava yükleniyor…',new_entry:'Yeni Giriş',
-    upload:'Fotoğraf Yükle',date:'Tarih',name:'Ad',desc:'Açıklama',
-    amount:'Tutar (€)',comment:'Yorum',title:'Başlık',notes:'Notlar',
-    contractor:'Müteahhit',phase:'Aşama',planned:'Planlanan',actual:'Gerçekleşen',
-    start:'Başlangıç',end:'Bitiş',status:'Durum',priority:'Öncelik',
-    high:'Yüksek',medium:'Orta',low:'Düşük',assigned:'Atanan',
-    phone:'Telefon',email:'E-posta',role:'Rol',company:'Şirket',
-    material:'Malzeme',supplier:'Tedarikçi',quantity:'Miktar',unit:'Birim',
-    expected:'Beklenen',version:'Versiyon',category:'Kategori',uploaded:'Yükleyen',
-    workers:'İşçiler',work_done:'Yapılan İşler',special:'Özel Durumlar',
-    total:'Toplam Bütçe',committed:'Taahhüt',spent:'Harcanan',remaining:'Kalan',
-    pname:'Proje Adı',loc:'Konum',pstart:'Başlangıç',pend:'Planlanan Bitiş',type:'Tür'},
-};
 
-// ── Standarddaten / Varsayılan Veriler ────────────────────────
-const SCHED=[
-  {id:1,phase:'Genehmigungen / İzinler',ps:'2025-03-01',pe:'2025-04-30',as:'2025-03-01',ae:'2025-05-15',st:'warning'},
-  {id:2,phase:'Erdarbeiten / Hafriyat',ps:'2025-04-01',pe:'2025-06-30',as:'2025-04-15',ae:'2025-07-10',st:'warning'},
-  {id:3,phase:'Fundamente / Temel',ps:'2025-05-01',pe:'2025-08-31',as:'2025-05-20',ae:'',st:'onTrack'},
-  {id:4,phase:'Stahlbau / Çelik Konstrüksiyon',ps:'2025-07-01',pe:'2025-12-31',as:'2025-07-15',ae:'',st:'onTrack'},
-  {id:5,phase:'Dach & Fassade / Çatı & Cephe',ps:'2025-10-01',pe:'2026-02-28',as:'',ae:'',st:'onTrack'},
-  {id:6,phase:'Anlagentechnik / Tesis Teknolojisi',ps:'2025-11-01',pe:'2026-04-30',as:'',ae:'',st:'onTrack'},
-  {id:7,phase:'Elektro & MSR',ps:'2026-01-01',pe:'2026-05-31',as:'',ae:'',st:'onTrack'},
-  {id:8,phase:'Inbetriebnahme / Devreye Alma',ps:'2026-05-01',pe:'2026-06-30',as:'',ae:'',st:'onTrack'},
-];
-
-const DEF={
-  project:{name:'ZINKPOWER Manisa',loc:'Manisa, Türkiye',pstart:'2025-03-01',pend:'2026-06-30',desc:'Neubau Feuerverzinkungsanlage / Yeni Galvaniz Tesisi'},
-  schedule:SCHED,
-  contracts:[{id:1,title:'Stahlbau – Sipil İnşaat',contractor:'Sipil İnşaat Ltd.',amount:2800000,date:'2025-02-15',status:'active',notes:'~170t Stahl'}],
-  changeOrders:[],
-  approvals:[
-    {id:1,title:'Schweißnähte Stahlbau / Kaynak Dikişleri',assigned:'peter',status:'open',notes:'Haupt-Schweißnähte prüfen',photos:[]},
-    {id:2,title:'Fundamentbewehrung / Temel Donatısı',assigned:'karsten',status:'open',notes:'Bewehrungsplan Rev.3',photos:[]},
-    {id:3,title:'Korrosionsschutz / Korozyon Boyası',assigned:'felix',status:'open',notes:'2K-Epoxy Grundierung',photos:[]},
-    {id:4,title:'Kranbahnträger / Vinç Ray Kirişi',assigned:'peter',status:'open',notes:'HEB 400, L=24m',photos:[]},
-  ],
-  issues:[],diary:[],documents:[],
-  contacts:[{id:1,name:'Peter Siemund',role:'Geschäftsführer / Genel Müdür',company:'ZINKPOWER KOPF GRUPPE',phone:'',email:''}],
-  gallery:[],suppliers:[],supplierProfiles:[],
-  budget:{total:5500000,payments:[]},
-  extraUsers:[],
-  pins:{peter:'0000',alper:'0000',karsten:'0000',felix:'0000'},
-};
 
 // ── UI Komponenten / UI Bileşenleri ───────────────────────────
 function Badge({status,t}){
@@ -1365,7 +1283,9 @@ export default function App(){
   const allUsers=[...CORE,...(data.extraUsers||[])];
   const pins=data.pins||DEF.pins;
 
-  if(!user)return <Login setUser={setUser} lang={lang} setLang={setLang} t={t} allUsers={allUsers} pins={pins}/>;
+  if(!user){
+    return <Login setUser={setUser} lang={lang} setLang={setLang} t={t} allUsers={allUsers} pins={pins}/>;
+  }
 
   const nav=[
     {id:'dash',l:t.dash,i:'🏠'},{id:'schedule',l:t.schedule,i:'📅'},
@@ -1457,84 +1377,3 @@ export default function App(){
     </div>
   </div>;
 }
-  const [user,setUser]=useState(null);
-  const [lang,setLang]=useState('de');
-  const [mod,setMod]=useState('dash');
-  const [data,setData]=useState(()=>({...DEF}));
-  const [sideOpen,setSideOpen]=useState(true);
-  const t=T[lang]||T.de;
-
-  // Supabase: Daten laden beim Start
-  useEffect(()=>{
-    async function load(){
-      const {data:rows}=await supabase.from('project_data').select('key, value');
-      if(rows&&rows.length>0){
-        const loaded={};
-        rows.forEach(row=>{try{loaded[row.key]=JSON.parse(row.value);}catch(e){}});
-        setData(d=>({...d,...loaded}));
-      }
-    }
-    load();
-  },[]);
-
-  // Supabase: Daten speichern
-  async function save(key,val){
-    setData(d=>({...d,[key]:val}));
-    await supabase.from('project_data').upsert({key,value:JSON.stringify(val),updated_at:new Date().toISOString()});
-  }
-
-  const allUsers=[...CORE,...(data.extraUsers||[])];
-  const pins=data.pins||DEF.pins;
-
-  if(!user)return <Login setUser={setUser} lang={lang} setLang={setLang} t={t} allUsers={allUsers} pins={pins}/>;
-
-  const nav=[
-    {id:'dash',l:t.dash,i:'🏠'},{id:'schedule',l:t.schedule,i:'📅'},
-    {id:'contracts',l:t.contracts,i:'📄'},{id:'changeOrders',l:t.co,i:'➕'},
-    {id:'approvals',l:t.approvals,i:'✅'},{id:'issues',l:t.issues,i:'⚠️'},
-    {id:'diary',l:t.diary,i:'📒'},{id:'docs',l:t.docs,i:'📁'},
-    {id:'contacts',l:t.contacts,i:'👥'},{id:'gallery',l:t.gallery,i:'🖼️'},
-    {id:'suppliers',l:t.suppliers,i:'🚚'},
-    ...(user.role==='admin'?[{id:'budget',l:t.budget,i:'💶'},{id:'users',l:'Nutzerverwaltung',i:'🔐'}]:[]),
-  ];
-
-  const mp={data,save,user,t};
-  const views={
-    dash:<Dashboard {...mp}/>,schedule:<Schedule {...mp}/>,contracts:<Contracts {...mp}/>,
-    changeOrders:<ChangeOrders {...mp}/>,approvals:<Approvals {...mp}/>,issues:<Issues {...mp}/>,
-    diary:<Diary {...mp}/>,docs:<Documents {...mp}/>,contacts:<Contacts {...mp}/>,
-    gallery:<Gallery {...mp}/>,suppliers:<Suppliers {...mp}/>,budget:<Budget {...mp}/>,
-    users:<UserManagement {...mp}/>,
-  };
-
-  return <div style={{display:'flex',minHeight:'100vh',fontFamily:'Arial',background:'#f0f2f8'}}>
-    <div style={{width:sideOpen?210:48,background:P,color:'#fff',display:'flex',flexDirection:'column',transition:'width 0.2s',flexShrink:0,overflow:'hidden',minHeight:'100vh'}}>
-      <div onClick={()=>setSideOpen(s=>!s)} style={{padding:'10px 8px',borderBottom:'1px solid rgba(255,255,255,0.15)',display:'flex',alignItems:'center',cursor:'pointer',gap:8,minHeight:52}}>
-        {sideOpen&&<div style={{flex:1,overflow:'hidden'}}>
-          <div style={{fontWeight:'bold',fontSize:12,whiteSpace:'nowrap',color:'#fff',letterSpacing:1}}>ZINKPOWER®</div>
-          <div style={{fontSize:9,opacity:0.7,color:'#fff',letterSpacing:2}}>KOPF GRUPPE</div>
-        </div>}
-        <span style={{fontSize:14,flexShrink:0,color:'#fff'}}>{sideOpen?'◀':'▶'}</span>
-      </div>
-      <div style={{flex:1,overflowY:'auto'}}>
-        {nav.map(n=><div key={n.id} onClick={()=>setMod(n.id)} style={{padding:'9px 10px',display:'flex',alignItems:'center',gap:8,cursor:'pointer',background:mod===n.id?'rgba(255,255,255,0.18)':'transparent',borderLeft:mod===n.id?'3px solid #fff':'3px solid transparent',overflow:'hidden'}}>
-          <span style={{fontSize:15,flexShrink:0}}>{n.i}</span>
-          {sideOpen&&<span style={{fontSize:12,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{n.l}</span>}
-        </div>)}
-      </div>
-      <div style={{padding:'10px 8px',borderTop:'1px solid rgba(255,255,255,0.15)'}}>
-        {sideOpen&&<div style={{display:'flex',gap:4,marginBottom:8}}>
-          {['de','tr'].map(l=><button key={l} onClick={()=>setLang(l)} style={{flex:1,padding:'4px 0',background:lang===l?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.12)',color:lang===l?P:'#fff',border:'none',borderRadius:4,fontSize:11,cursor:'pointer',fontFamily:'Arial',fontWeight:'bold'}}>{l.toUpperCase()}</button>)}
-        </div>}
-        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:sideOpen?8:0}}>
-          <div style={{width:30,height:30,borderRadius:'50%',background:'rgba(255,255,255,0.22)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:'bold',fontSize:11,flexShrink:0}}>{getInit(user.name)}</div>
-          {sideOpen&&<span style={{fontSize:12,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{user.name}</span>}
-        </div>
-        {sideOpen&&<button onClick={()=>setUser(null)} style={{width:'100%',padding:'5px 0',background:'rgba(255,255,255,0.1)',color:'#fff',border:'1px solid rgba(255,255,255,0.2)',borderRadius:5,fontSize:11,cursor:'pointer',fontFamily:'Arial'}}>{t.logout}</button>}
-      </div>
-    </div>
-    <div style={{flex:1,overflowY:'auto',padding:20}}>
-      {views[mod]||<div style={{color:GR}}>{t.no_data}</div>}
-    </div>
-  </div>;
-};
