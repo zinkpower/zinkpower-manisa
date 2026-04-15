@@ -1103,6 +1103,7 @@ const PERM_LIST=[
   {id:'contracts',label:'Verträge hinzufügen',labelTr:'Sözleşme ekle'},
   {id:'suppliers',label:'Lieferanten bearbeiten',labelTr:'Tedarikçileri düzenle'},
   {id:'documents',label:'Dokumente hochladen',labelTr:'Belge yükle'},
+  {id:'budget',label:'Budget einsehen',labelTr:'Bütçeyi görüntüle'},
 ];
 function UserManagement({data,save,t}){
   const [pins,setPins]=useState(()=>data.pins||DEF.pins);
