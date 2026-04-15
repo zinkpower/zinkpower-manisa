@@ -124,6 +124,7 @@ function useIsMobile() {
   return mob;
 }
 
+
 // ── Kalender-Konstanten ───────────────────────────────────────
 const MNAMES=['Januar / Ocak','Februar / Şubat','März / Mart','April / Nisan','Mai / Mayıs',
   'Juni / Haziran','Juli / Temmuz','August / Ağustos','September / Eylül',
@@ -1039,16 +1040,16 @@ function Budget({data,save,user}){
   }
   function delPayment(id){const u={...bud,payments:payments.filter(p=>p.id!==id)};setBud(u);save('budget',u);}
   return <div>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-      <h2 style={{color:P,fontSize:17,margin:0}}>💶 Budget 🔒</h2>
-      <Btn onClick={()=>setShowForm(s=>!s)}>+ Zahlung eintragen</Btn>
-    </div>
+ <PH title="💶 Budget">
+      {isAdmin && <Btn onClick={()=>setShowForm(s=>!s)}>+ Zahlung eintragen</Btn>}
+    </PH>
+
     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:14}}>
       {[{l:'Gesamtbudget',v:total,c:P,ed:true},{l:'Ausgezahlt',v:totalPaid,c:RD},{l:'Verbleibend',v:remaining,c:remaining>=0?GN:RD}].map(k=>(
         <div key={k.l} style={{background:'#fff',borderRadius:10,padding:'14px 16px',boxShadow:'0 1px 8px rgba(40,56,152,0.07)',borderTop:`3px solid ${k.c}`}}>
           <div style={{fontSize:11,color:GR,marginBottom:4}}>{k.l}</div>
           <div style={{fontSize:22,fontWeight:'bold',color:k.c,marginBottom:k.ed?6:0}}>{(k.v||0).toLocaleString()} €</div>
-          {k.ed&&<Btn sm outline onClick={()=>{setTotalInput(String(total));setEditTotal(true);}}>✏️ Ändern</Btn>}
+          {k.ed&&isAdmin&&<Btn sm outline onClick={()=>{setTotalInput(String(total));setEditTotal(true);}}>✏️ Ändern</Btn>}
         </div>
       ))}
     </div>
@@ -1063,11 +1064,11 @@ function Budget({data,save,user}){
         </div>
       </div>
     </Card>
-    {editTotal&&<IForm title="Gesamtbudget festlegen" onClose={()=>setEditTotal(false)}>
+     {editTotal&&isAdmin&&<IForm title="Gesamtbudget festlegen" onClose={()=>setEditTotal(false)}>
       <Fi label="Gesamtbudget (€)" value={totalInput} onChange={setTotalInput} type="number" ph="z.B. 5500000"/>
       <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setEditTotal(false)}>Abbrechen</Btn><Btn onClick={saveTotal}>Speichern</Btn></div>
     </IForm>}
-    {showForm&&<IForm title="Zahlung eintragen" onClose={()=>setShowForm(false)}>
+    {showForm&&isAdmin&&<IForm title="Zahlung eintragen" onClose={()=>setShowForm(false)}>
       <Fi label="Datum" value={f.date} onChange={v=>setF({...f,date:v})} type="date"/>
       <Fi label="Zahlungsempfänger *" value={f.recipient} onChange={v=>setF({...f,recipient:v})} ph="z.B. Sipil İnşaat Ltd."/>
       <Fi label="Beschreibung" value={f.desc} onChange={v=>setF({...f,desc:v})} ph="z.B. Abschlagsrechnung #2"/>
@@ -1086,7 +1087,7 @@ function Budget({data,save,user}){
                 <div style={{fontSize:11,color:GR}}>📅 {p.date} · {p.by}</div>
               </div>
               <div style={{textAlign:'right',flexShrink:0}}><div style={{fontSize:16,fontWeight:'bold',color:RD}}>−{Number(p.amount).toLocaleString()} €</div></div>
-              <Btn sm danger onClick={()=>delPayment(p.id)}>✕</Btn>
+              {isAdmin&&<Btn sm danger onClick={()=>delPayment(p.id)}>✕</Btn>}
             </div>
           ))}
           <div style={{display:'flex',justifyContent:'space-between',padding:'10px 0',marginTop:4,borderTop:`2px solid ${LT}`}}>
@@ -1264,6 +1265,8 @@ export default function App(){
   const isMobile=useIsMobile();
   const t=T[lang]||T.de;
 
+
+
   useEffect(()=>{
     async function load(){
       const {data:rows}=await supabase.from('project_data').select('key, value');
@@ -1295,7 +1298,12 @@ export default function App(){
     {id:'diary',l:t.diary,i:'📒'},{id:'docs',l:t.docs,i:'📁'},
     {id:'contacts',l:t.contacts,i:'👥'},{id:'gallery',l:t.gallery,i:'🖼️'},
     {id:'suppliers',l:t.suppliers,i:'🚚'},
-    ...(user.role==='admin'?[{id:'budget',l:t.budget,i:'💶'},{id:'users',l:'Nutzer',i:'🔐'}]:[]),
+        ...(user.role==='admin'
+      ?[{id:'budget',l:t.budget,i:'💶'},{id:'users',l:'Nutzer',i:'🔐'}]
+      :(user.permissions||[]).includes('budget')
+        ?[{id:'budget',l:t.budget,i:'💶'}]
+        :[]),
+
   ];
 
   const mp={data,save,user,t,isMobile};
@@ -1346,7 +1354,6 @@ export default function App(){
     </div>;
   }
 
-  // ── DESKTOP LAYOUT ─────────────────────────────────────────
   return <div style={{display:'flex',minHeight:'100vh',fontFamily:'Arial',background:'#f0f2f8'}}>
     <div style={{width:sideOpen?210:48,background:P,color:'#fff',display:'flex',flexDirection:'column',transition:'width 0.2s',flexShrink:0,overflow:'hidden',minHeight:'100vh'}}>
       <div onClick={()=>setSideOpen(s=>!s)} style={{padding:'10px 8px',borderBottom:'1px solid rgba(255,255,255,0.15)',display:'flex',alignItems:'center',cursor:'pointer',gap:8,minHeight:52}}>
