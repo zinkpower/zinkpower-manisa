@@ -1,8 +1,9 @@
+// ZINKPOWER Manisa — modules_core.jsx V8
 import { useState, useEffect, useRef } from "react";
 import {
   P, GR, LT, GN, YL, RD,
   CORE, EF_PHASE, MNAMES, DNAMES, SUP_CATS,
-  Badge, Btn, Card, IForm, Fi, Ft, Fs, PicUpload, Thumbs, PH, Av,
+  Badge, Btn, Card, IForm, Fi, Ft, Fs, PicUpload, Thumbs, PH, Av, CopyBtn,
 } from "./core.jsx";
 
 // ════════════════════════════════════════════════════════════════
@@ -34,7 +35,9 @@ export function Dashboard({data,save,user,t,isMobile}){
             <div key={k}><div style={{fontSize:11,color:GR,marginBottom:2}}>{k}</div><div style={{fontSize:14,fontWeight:'bold',color:P}}>{v}</div></div>
           ))}
         </div>
-        {p.desc&&<div style={{marginTop:12,padding:'8px 12px',background:LT,borderRadius:6,fontSize:12,color:GR}}>{p.desc}</div>}
+        {p.desc&&<div style={{marginTop:12,padding:'8px 12px',background:LT,borderRadius:6,fontSize:12,color:GR,display:'flex',alignItems:'flex-start',gap:4}}>
+          <span style={{flex:1}}>{p.desc}</span><CopyBtn text={p.desc} t={t} sm/>
+        </div>}
       </Card>
     )}
     <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr 1fr':'repeat(4,1fr)',gap:10,marginBottom:14}}>
@@ -62,7 +65,7 @@ export function Dashboard({data,save,user,t,isMobile}){
 }
 
 // ════════════════════════════════════════════════════════════════
-// SCHEDULE (reiche Version: Tooltip, Fortschritt, Tages-Kalender, Mobil)
+// SCHEDULE
 // ════════════════════════════════════════════════════════════════
 export function Schedule({data,save,user,t,isMobile}){
   const [items,setItems]=useState(()=>data.schedule||[]);
@@ -140,8 +143,8 @@ export function Schedule({data,save,user,t,isMobile}){
       <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setEditId(null)}>{t.cancel}</Btn><Btn onClick={doSave}>{t.save}</Btn></div>
     </IForm>}
     {delId&&<IForm title="Phase löschen?" onClose={()=>setDelId(null)}>
-      <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{items.find(i=>i.id===delId)?.phase}</b> wirklich löschen?</div>
-      <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>doDelete(delId)}>Löschen</Btn></div>
+      <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{items.find(i=>i.id===delId)?.phase}</b> {t.really_delete}</div>
+      <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>doDelete(delId)}>{t.delete}</Btn></div>
     </IForm>}
     <Card title="Gantt">
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:isMobile?10:6}}>
@@ -227,7 +230,7 @@ export function Schedule({data,save,user,t,isMobile}){
 }
 
 // ════════════════════════════════════════════════════════════════
-// CONTRACTS (mit contracts_view + contracts Permissions)
+// CONTRACTS
 // ════════════════════════════════════════════════════════════════
 export function Contracts({data,save,user,t}){
   const canSee=user.role==='admin'||(user.permissions||[]).includes('contracts_view')||(user.permissions||[]).includes('contracts');
@@ -266,9 +269,9 @@ export function Contracts({data,save,user,t}){
       </div>
       <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setShow(false)}>{t.cancel}</Btn><Btn disabled={!f.title||!f.contractor} onClick={add}>{t.save}</Btn></div>
     </IForm>}
-    {delId&&canEdit&&<IForm title="Vertrag löschen?" onClose={()=>setDelId(null)}>
-      <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{items.find(i=>i.id===delId)?.title}</b> wirklich löschen?</div>
-      <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>del(delId)}>Löschen</Btn></div>
+    {delId&&canEdit&&<IForm title={`${t.contracts} ${t.really_delete}`} onClose={()=>setDelId(null)}>
+      <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{items.find(i=>i.id===delId)?.title}</b> {t.really_delete}</div>
+      <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>del(delId)}>{t.delete}</Btn></div>
     </IForm>}
     {viewFile&&<IForm title="📎 Vertragsdokument" onClose={()=>setViewFile(null)}>
       {viewFile.startsWith('data:image')?<img src={viewFile} alt="Vertrag" style={{width:'100%',borderRadius:8}}/>:<div style={{textAlign:'center',padding:20}}><div style={{fontSize:40,marginBottom:12}}>📄</div><a href={viewFile} download="vertrag.pdf"><Btn>⬇️ PDF herunterladen</Btn></a></div>}
@@ -277,10 +280,10 @@ export function Contracts({data,save,user,t}){
       items.map(item=><Card key={item.id}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
           <div style={{flex:1}}>
-            <div style={{fontWeight:'bold',color:P,fontSize:14,marginBottom:4}}>{item.title}</div>
+            <div style={{fontWeight:'bold',color:P,fontSize:14,marginBottom:4}}>{item.title}<CopyBtn text={item.title} t={t} sm/></div>
             <div style={{fontSize:12,color:GR}}>{t.contractor}: {item.contractor}</div>
             <div style={{fontSize:12,color:GR}}>{t.date}: {item.date}</div>
-            {item.notes&&<div style={{fontSize:12,color:GR,marginTop:3}}>{item.notes}</div>}
+            {item.notes&&<div style={{fontSize:12,color:GR,marginTop:3}}>{item.notes}<CopyBtn text={item.notes} t={t} sm/></div>}
             {item.file&&<div style={{marginTop:8}}><Btn sm outline onClick={()=>setViewFile(item.file)}>📎 {item.fileName||'Dokument'}</Btn></div>}
           </div>
           <div style={{textAlign:'right',marginLeft:12,flexShrink:0}}>
@@ -294,7 +297,7 @@ export function Contracts({data,save,user,t}){
 }
 
 // ════════════════════════════════════════════════════════════════
-// CHANGE ORDERS (Nachträge)
+// CHANGE ORDERS
 // ════════════════════════════════════════════════════════════════
 export function ChangeOrders({data,save,user,t}){
   const [items,setItems]=useState(()=>data.changeOrders||[]);
@@ -348,9 +351,9 @@ export function ChangeOrders({data,save,user,t}){
       return <Card key={item.id}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
           <div style={{flex:1}}>
-            <div style={{fontWeight:'bold',color:P,fontSize:14,marginBottom:4}}>{item.title}</div>
+            <div style={{fontWeight:'bold',color:P,fontSize:14,marginBottom:4}}>{item.title}<CopyBtn text={item.title} t={t} sm/></div>
             {item.contractor&&<div style={{fontSize:12,color:GR}}>🏢 {item.contractor}</div>}
-            <div style={{fontSize:12,color:GR,marginTop:2}}>{item.desc}</div>
+            {item.desc&&<div style={{fontSize:12,color:GR,marginTop:2}}>{item.desc}<CopyBtn text={item.desc} t={t} sm/></div>}
             <div style={{fontSize:11,color:GR,marginTop:3}}>📅 {item.date} · 👤 {item.by}</div>
             {item.comment&&<div style={{fontSize:12,color:GR,marginTop:3,fontStyle:'italic'}}>💬 {item.comment} ({item.revBy})</div>}
             {item.status==='converted'&&<div style={{fontSize:11,color:GN,marginTop:4,fontWeight:'bold'}}>✓ Als Vertrag übernommen</div>}
@@ -397,17 +400,17 @@ export function Approvals({data,save,user,t}){
     {items.map(item=><Card key={item.id}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
         <div style={{flex:1}}>
-          <div style={{fontWeight:'bold',color:P,fontSize:14,marginBottom:4}}>{item.title}</div>
+          <div style={{fontWeight:'bold',color:P,fontSize:14,marginBottom:4}}>{item.title}<CopyBtn text={item.title} t={t} sm/></div>
           <div style={{fontSize:12,color:GR}}>👤 {t.assigned}: <b>{CORE.find(u=>u.id===item.assigned)?.name||item.assigned}</b></div>
-          {item.notes&&<div style={{fontSize:12,color:GR,marginTop:2}}>{item.notes}</div>}
-          {item.comment&&<div style={{fontSize:12,color:GR,marginTop:3,fontStyle:'italic'}}>💬 {item.comment} ({item.by})</div>}
+          {item.notes&&<div style={{fontSize:12,color:GR,marginTop:2}}>{item.notes}<CopyBtn text={item.notes} t={t} sm/></div>}
+          {item.comment&&<div style={{fontSize:12,color:GR,marginTop:3,fontStyle:'italic'}}>💬 {item.comment} ({item.by})<CopyBtn text={item.comment} t={t} sm/></div>}
           <Thumbs photos={item.photos}/>
         </div>
         <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6,marginLeft:12,flexShrink:0}}>
           <Badge status={item.status} t={t}/>
           {item.status==='open'&&canApr(item)&&<>
-            <Btn sm col={GN} onClick={()=>{const u=items.map(i=>i.id===item.id?{...i,status:'approved',comment:'',photos:[],by:user.name,approvedDate:new Date().toISOString().split('T')[0]}:i);setItems(u);save('approvals',u);}}>✓ Freigeben</Btn>
-            <Btn sm outline onClick={()=>{setActiveId(item.id);setForm({comment:'',photos:[]});}}>💬 Mit Kommentar</Btn>
+            <Btn sm col={GN} onClick={()=>{const u=items.map(i=>i.id===item.id?{...i,status:'approved',comment:'',photos:[],by:user.name,approvedDate:new Date().toISOString().split('T')[0]}:i);setItems(u);save('approvals',u);}}>✓ {t.approve}</Btn>
+            <Btn sm outline onClick={()=>{setActiveId(item.id);setForm({comment:'',photos:[]});}}>💬 {t.comment}</Btn>
           </>}
         </div>
       </div>
@@ -416,7 +419,7 @@ export function Approvals({data,save,user,t}){
 }
 
 // ════════════════════════════════════════════════════════════════
-// ISSUES (mit Kontaktzuweisung + WhatsApp/E-Mail)
+// ISSUES
 // ════════════════════════════════════════════════════════════════
 export function Issues({data,save,user,t}){
   const [items,setItems]=useState(()=>data.issues||[]);
@@ -502,11 +505,11 @@ export function Issues({data,save,user,t}){
       {open.map(item=><Card key={item.id}>
         <div style={{display:'flex',justifyContent:'space-between'}}>
           <div style={{flex:1}}>
-            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4,flexWrap:'wrap'}}>
               <span style={{padding:'2px 8px',background:pc[item.priority]+'25',color:pc[item.priority],borderRadius:6,fontSize:11,fontWeight:'bold'}}>{pLabel[item.priority]}</span>
-              <b style={{color:P,fontSize:13}}>{item.title}</b>
+              <b style={{color:P,fontSize:13}}>{item.title}</b><CopyBtn text={item.title} t={t} sm/>
             </div>
-            {item.desc&&<div style={{fontSize:12,color:GR,marginBottom:3}}>{item.desc}</div>}
+            {item.desc&&<div style={{fontSize:12,color:GR,marginBottom:3}}>{item.desc}<CopyBtn text={item.desc} t={t} sm/></div>}
             <div style={{fontSize:11,color:GR}}>📅 {item.date} · 👤 {item.by}{item.assigned?` · → ${item.assigned}`:''}</div>
             <Thumbs photos={item.photos}/>
             {renderAssignedContacts(item)}
@@ -542,7 +545,7 @@ export function Issues({data,save,user,t}){
 }
 
 // ════════════════════════════════════════════════════════════════
-// DIARY (mit Wetter + Kalender)
+// DIARY
 // ════════════════════════════════════════════════════════════════
 export function Diary({data,save,user,t}){
   const [items,setItems]=useState(()=>data.diary||[]);
@@ -642,8 +645,8 @@ export function Diary({data,save,user,t}){
           </div>
         </div>
         {e.workers&&<div style={{fontSize:12,color:GR,marginBottom:2}}>👷 {e.workers}</div>}
-        {e.work_done&&<div style={{fontSize:13,marginBottom:2}}>{e.work_done}</div>}
-        {e.special&&<div style={{fontSize:12,color:YL,fontStyle:'italic'}}>⚠️ {e.special}</div>}
+        {e.work_done&&<div style={{fontSize:13,marginBottom:2}}>{e.work_done}<CopyBtn text={e.work_done} t={t} sm/></div>}
+        {e.special&&<div style={{fontSize:12,color:YL,fontStyle:'italic'}}>⚠️ {e.special}<CopyBtn text={e.special} t={t} sm/></div>}
         <Thumbs photos={e.photos}/>
       </Card>)}
     </div>}
@@ -719,8 +722,8 @@ export function Contacts({data,save,user,t}){
       <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setShow(false)}>{t.cancel}</Btn><Btn disabled={!f.name.trim()} onClick={add}>{t.save}</Btn></div>
     </IForm>}
     {delId&&isAdmin&&<IForm title="Kontakt löschen?" onClose={()=>setDelId(null)}>
-      <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{items.find(i=>i.id===delId)?.name}</b> wirklich löschen?</div>
-      <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>del(delId)}>Löschen</Btn></div>
+      <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{items.find(i=>i.id===delId)?.name}</b> {t.really_delete}</div>
+      <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>del(delId)}>{t.delete}</Btn></div>
     </IForm>}
     {items.length===0&&<Card><div style={{color:GR,textAlign:'center',padding:20}}>{t.no_data}</div></Card>}
     <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:12}}>
@@ -740,7 +743,9 @@ export function Contacts({data,save,user,t}){
           {item.email&&<a href={`mailto:${item.email}`} style={{textDecoration:'none'}}><div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:P+'10',borderRadius:8,border:`1px solid ${P}25`}}><span style={{fontSize:18}}>✉️</span><div style={{flex:1,overflow:'hidden'}}><div style={{fontSize:10,color:GR}}>E-Mail</div><div style={{fontSize:12,fontWeight:'bold',color:P,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.email}</div></div><span style={{marginLeft:'auto',fontSize:12,color:P,fontWeight:'bold',flexShrink:0}}>Senden →</span></div></a>}
           {item.address&&<a href={`https://maps.google.com/?q=${encodeURIComponent(item.address)}`} target="_blank" rel="noreferrer" style={{textDecoration:'none'}}><div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'#fff8f0',borderRadius:8,border:`1px solid ${YL}40`}}><span style={{fontSize:18}}>📍</span><div><div style={{fontSize:10,color:GR}}>Adresse</div><div style={{fontSize:12,fontWeight:'bold',color:YL}}>{item.address}</div></div><span style={{marginLeft:'auto',fontSize:12,color:YL,fontWeight:'bold'}}>Maps →</span></div></a>}
         </div>
-        {item.notes&&<div style={{marginTop:10,padding:'6px 10px',background:'#f8f9fc',borderRadius:6,fontSize:12,color:GR}}>💬 {item.notes}</div>}
+        {item.notes&&<div style={{marginTop:10,padding:'6px 10px',background:'#f8f9fc',borderRadius:6,fontSize:12,color:GR,display:'flex',alignItems:'flex-start',gap:4}}>
+          <span style={{flex:1}}>💬 {item.notes}</span><CopyBtn text={item.notes} t={t} sm/>
+        </div>}
       </div>)}
     </div>
   </div>;
@@ -822,7 +827,7 @@ export function Gallery({data,save,user,t}){
 }
 
 // ════════════════════════════════════════════════════════════════
-// SUPPLIERS (Profile + Lieferungen)
+// SUPPLIERS
 // ════════════════════════════════════════════════════════════════
 export function Suppliers({data,save,user,t}){
   const [tab,setTab]=useState('profiles');
@@ -887,8 +892,8 @@ export function Suppliers({data,save,user,t}){
         <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setShowForm(false)}>{t.cancel}</Btn><Btn disabled={!fp.name.trim()} onClick={addProfile}>{t.save}</Btn></div>
       </IForm>}
       {delId&&isAdmin&&<IForm title="Lieferant löschen?" onClose={()=>setDelId(null)}>
-        <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{profiles.find(p=>p.id===delId)?.name}</b> wirklich löschen?</div>
-        <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>delProfile(delId)}>Löschen</Btn></div>
+        <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{profiles.find(p=>p.id===delId)?.name}</b> {t.really_delete}</div>
+        <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>delProfile(delId)}>{t.delete}</Btn></div>
       </IForm>}
       {profiles.length===0?<Card><div style={{color:GR,textAlign:'center',padding:20}}>{t.no_data}</div></Card>:
         profiles.map(p=>{
@@ -925,7 +930,7 @@ export function Suppliers({data,save,user,t}){
               ):null)}
               {p.taxNo&&<div style={{fontSize:12,color:GR,marginBottom:6}}>🧾 Vergi No: <b>{p.taxNo}</b></div>}
               {p.notes&&<div style={{fontSize:12,color:GR,padding:'8px 10px',background:'#f8f9fc',borderRadius:6}}>💬 {p.notes}</div>}
-              {isAdmin&&<div style={{marginTop:12,display:'flex',justifyContent:'flex-end'}}><Btn sm danger onClick={()=>setDelId(p.id)}>✕ Löschen</Btn></div>}
+              {isAdmin&&<div style={{marginTop:12,display:'flex',justifyContent:'flex-end'}}><Btn sm danger onClick={()=>setDelId(p.id)}>✕ {t.delete}</Btn></div>}
             </div>}
           </div>;
         })}
@@ -964,7 +969,7 @@ export function Suppliers({data,save,user,t}){
 }
 
 // ════════════════════════════════════════════════════════════════
-// TASKS (Aufgaben / Görevler)
+// TASKS — V7: vollständig übersetzt + CopyBtn
 // ════════════════════════════════════════════════════════════════
 export function Tasks({data,save,user,t}){
   const [items,setItems]=useState(()=>data.tasks||[]);
@@ -998,14 +1003,20 @@ export function Tasks({data,save,user,t}){
   function mailLink(c,item){const subj=encodeURIComponent(`[ZINKPOWER Manisa] Aufgabe: ${item.topic}`);const body=encodeURIComponent(buildMsg(item,'de')+'\n\n— — —\n\n'+buildMsg(item,'tr'));return `mailto:${c.email}?subject=${subj}&body=${body}`;}
   function waLink(c,item){const phone=(c.mobile||c.phone||'').replace(/[^\d+]/g,'').replace(/^\+/,'');const text=encodeURIComponent(buildMsg(item,'de')+'\n\n— — —\n\n'+buildMsg(item,'tr'));return `https://wa.me/${phone}?text=${text}`;}
   function dueColor(due){if(!due)return GR;const d=new Date(due);const diff=Math.round((d-new Date(today))/864e5);if(diff<0)return RD;if(diff<=7)return YL;return GN;}
-  function dueText(due){if(!due)return '–';const d=new Date(due);const diff=Math.round((d-new Date(today))/864e5);if(diff<0)return `${due} (${Math.abs(diff)}T überfällig)`;if(diff===0)return `${due} (heute)`;return `${due} (in ${diff}T)`;}
+  function dueLabel(due){
+    if(!due)return '–';
+    const d=new Date(due);const diff=Math.round((d-new Date(today))/864e5);
+    if(diff<0)return `${due} (${Math.abs(diff)}${t.task_overdue_suffix})`;
+    if(diff===0)return `${due} (${t.task_today})`;
+    return `${due} (${t.task_in_days} ${diff}T)`;
+  }
   function renderAssignees(item){
     const userList=(item.assignedUsers||[]).map(uid=>allU.find(u=>u.id===uid)).filter(Boolean);
     const contactList=(item.assignedContacts||[]).map(cid=>contacts.find(c=>c.id===cid)).filter(Boolean);
     if(!userList.length&&!contactList.length)return null;
     return <div style={{marginTop:8,padding:10,background:'#f8f9fc',borderRadius:8,border:`1px solid ${LT}`}}>
-      <div style={{fontSize:11,color:GR,marginBottom:6,fontWeight:'bold'}}>👥 Zugewiesen an:</div>
-      {userList.map(u=>(<div key={'u'+u.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><Av name={u.name} size={24}/><div style={{fontSize:12,fontWeight:'bold',color:P}}>{u.name}</div><span style={{fontSize:10,color:GR}}>· Login-Nutzer</span></div>))}
+      <div style={{fontSize:11,color:GR,marginBottom:6,fontWeight:'bold'}}>👥 {t.task_assigned_to}:</div>
+      {userList.map(u=>(<div key={'u'+u.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><Av name={u.name} size={24}/><div style={{fontSize:12,fontWeight:'bold',color:P}}>{u.name}</div><span style={{fontSize:10,color:GR}}>· {t.task_login_user}</span></div>))}
       {contactList.map(c=>(
         <div key={'c'+c.id} style={{display:'flex',alignItems:'center',gap:8,marginTop:6,flexWrap:'wrap'}}>
           <Av name={c.name} size={24}/>
@@ -1025,14 +1036,14 @@ export function Tasks({data,save,user,t}){
   const open=visible.filter(i=>i.status!=='done').sort((a,b)=>{if(!a.due&&!b.due)return 0;if(!a.due)return 1;if(!b.due)return -1;return a.due.localeCompare(b.due);});
   const done=visible.filter(i=>i.status==='done').sort((a,b)=>(b.doneAt||'').localeCompare(a.doneAt||''));
   return <div>
-    <PH title="📋 Aufgaben / Görevler"><Btn onClick={()=>{setF(ef);setEditId(null);setShow(s=>!s);}}>+ {t.add}</Btn></PH>
-    {!isAdmin&&<div style={{background:'#eef5ff',border:`1px solid ${P}40`,borderRadius:6,padding:'6px 12px',marginBottom:10,fontSize:11,color:P}}>ℹ️ Du siehst nur Aufgaben, die du erstellt hast oder die dir zugewiesen sind</div>}
-    {show&&<IForm title={editId?'Aufgabe bearbeiten':'Neue Aufgabe / Yeni Görev'} onClose={()=>{setShow(false);setEditId(null);}}>
-      <Fi label="Thema / Konu *" value={f.topic} onChange={v=>setF({...f,topic:v})} ph="Kurzes Besprechungs-Thema"/>
-      <Ft label="Beschreibung / Açıklama" value={f.desc} onChange={v=>setF({...f,desc:v})} rows={2}/>
-      <Fi label="Frist / Son tarih" value={f.due} onChange={v=>setF({...f,due:v})} type="date"/>
+    <PH title={`📋 ${t.tasks}`}><Btn onClick={()=>{setF(ef);setEditId(null);setShow(s=>!s);}}>+ {t.add}</Btn></PH>
+    {!isAdmin&&<div style={{background:'#eef5ff',border:`1px solid ${P}40`,borderRadius:6,padding:'6px 12px',marginBottom:10,fontSize:11,color:P}}>ℹ️ {t.task_info_nonadmin}</div>}
+    {show&&<IForm title={editId?t.task_edit:t.task_new} onClose={()=>{setShow(false);setEditId(null);}}>
+      <Fi label={`${t.task_topic} *`} value={f.topic} onChange={v=>setF({...f,topic:v})} ph={t.task_topic_ph}/>
+      <Ft label={t.desc} value={f.desc} onChange={v=>setF({...f,desc:v})} rows={2}/>
+      <Fi label={t.task_due} value={f.due} onChange={v=>setF({...f,due:v})} type="date"/>
       <div style={{marginBottom:10}}>
-        <label style={{display:'block',fontSize:11,color:GR,marginBottom:4}}>👤 Login-Nutzer zuweisen</label>
+        <label style={{display:'block',fontSize:11,color:GR,marginBottom:4}}>👤 {t.task_assigned_users}</label>
         <div style={{maxHeight:120,overflowY:'auto',border:'1px solid #ddd',borderRadius:6,padding:6}}>
           {allU.map(u=>{
             const active=(f.assignedUsers||[]).includes(u.id);
@@ -1044,8 +1055,8 @@ export function Tasks({data,save,user,t}){
         </div>
       </div>
       <div style={{marginBottom:10}}>
-        <label style={{display:'block',fontSize:11,color:GR,marginBottom:4}}>👥 Externe Kontakte zuweisen</label>
-        {contacts.length===0?<div style={{fontSize:12,color:GR,fontStyle:'italic',padding:8,background:'#f8f9fc',borderRadius:6}}>Keine Kontakte vorhanden.</div>:
+        <label style={{display:'block',fontSize:11,color:GR,marginBottom:4}}>👥 {t.task_assigned_contacts}</label>
+        {contacts.length===0?<div style={{fontSize:12,color:GR,fontStyle:'italic',padding:8,background:'#f8f9fc',borderRadius:6}}>{t.task_no_contacts}</div>:
           <div style={{maxHeight:120,overflowY:'auto',border:'1px solid #ddd',borderRadius:6,padding:6}}>
             {contacts.map(c=>{
               const active=(f.assignedContacts||[]).includes(c.id);
@@ -1061,29 +1072,29 @@ export function Tasks({data,save,user,t}){
       </div>
       <div style={{display:'flex',gap:8,marginTop:8}}><Btn outline onClick={()=>{setShow(false);setEditId(null);}}>{t.cancel}</Btn><Btn disabled={!f.topic.trim()} onClick={add}>{t.save}</Btn></div>
     </IForm>}
-    {delId&&<IForm title="Aufgabe löschen?" onClose={()=>setDelId(null)}>
-      <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{items.find(i=>i.id===delId)?.topic}</b> wirklich löschen?</div>
-      <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>del(delId)}>Löschen</Btn></div>
+    {delId&&<IForm title={t.task_delete_q} onClose={()=>setDelId(null)}>
+      <div style={{fontSize:13,marginBottom:14}}><b style={{color:RD}}>{items.find(i=>i.id===delId)?.topic}</b> {t.really_delete}</div>
+      <div style={{display:'flex',gap:8}}><Btn outline onClick={()=>setDelId(null)}>{t.cancel}</Btn><Btn danger onClick={()=>del(delId)}>{t.delete}</Btn></div>
     </IForm>}
     <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,padding:'6px 10px',background:P+'12',borderRadius:8}}>
-      <span style={{fontSize:14}}>📌</span><b style={{fontSize:13,color:P}}>Offene Themen ({open.length})</b>
+      <span style={{fontSize:14}}>📌</span><b style={{fontSize:13,color:P}}>{t.task_open_title} ({open.length})</b>
     </div>
-    {open.length===0?<Card><div style={{color:GR,textAlign:'center',padding:20,fontSize:13}}>Keine offenen Aufgaben 🎉</div></Card>:
+    {open.length===0?<Card><div style={{color:GR,textAlign:'center',padding:20,fontSize:13}}>{t.task_no_open}</div></Card>:
       open.map(item=>{
         const canEditThis=isAdmin||item.createdById===user.id;
         return <Card key={item.id}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
             <div style={{flex:1}}>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4,flexWrap:'wrap'}}>
-                <b style={{color:P,fontSize:14}}>{item.topic}</b>
-                {item.due&&<span style={{padding:'2px 8px',background:dueColor(item.due)+'25',color:dueColor(item.due),borderRadius:6,fontSize:11,fontWeight:'bold'}}>📅 {dueText(item.due)}</span>}
+                <b style={{color:P,fontSize:14}}>{item.topic}</b><CopyBtn text={item.topic} t={t} sm/>
+                {item.due&&<span style={{padding:'2px 8px',background:dueColor(item.due)+'25',color:dueColor(item.due),borderRadius:6,fontSize:11,fontWeight:'bold'}}>📅 {dueLabel(item.due)}</span>}
               </div>
-              {item.desc&&<div style={{fontSize:12,color:GR,marginBottom:3}}>{item.desc}</div>}
-              <div style={{fontSize:11,color:GR}}>👤 erstellt von <b>{item.createdBy}</b> · 📅 {item.createdAt}</div>
+              {item.desc&&<div style={{fontSize:12,color:GR,marginBottom:3}}>{item.desc}<CopyBtn text={item.desc} t={t} sm/></div>}
+              <div style={{fontSize:11,color:GR}}>👤 {t.task_created_by} <b>{item.createdBy}</b> · 📅 {item.createdAt}</div>
               {renderAssignees(item)}
             </div>
             <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
-              <Btn sm col={GN} onClick={()=>setDone(item.id,true)}>✓ Erledigt</Btn>
+              <Btn sm col={GN} onClick={()=>setDone(item.id,true)}>✓ {t.task_done}</Btn>
               {canEditThis&&<Btn sm outline onClick={()=>openEdit(item)}>✏️</Btn>}
               {canEditThis&&<Btn sm danger onClick={()=>setDelId(item.id)}>✕</Btn>}
             </div>
@@ -1092,7 +1103,7 @@ export function Tasks({data,save,user,t}){
       })}
     {done.length>0&&<div style={{marginTop:16}}>
       <div onClick={()=>setShowDone(s=>!s)} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:GN+'12',borderRadius:8,cursor:'pointer'}}>
-        <span style={{fontSize:14}}>{showDone?'▼':'▶'}</span><b style={{fontSize:13,color:GN}}>✓ Erledigte Themen ({done.length})</b>
+        <span style={{fontSize:14}}>{showDone?'▼':'▶'}</span><b style={{fontSize:13,color:GN}}>✓ {t.task_done_title} ({done.length})</b>
       </div>
       {showDone&&<div style={{marginTop:8}}>
         {done.map(item=>{
@@ -1101,14 +1112,14 @@ export function Tasks({data,save,user,t}){
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
               <div style={{flex:1,opacity:0.75}}>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                  <span style={{padding:'2px 8px',background:GN+'25',color:GN,borderRadius:6,fontSize:11,fontWeight:'bold'}}>✓ Erledigt</span>
+                  <span style={{padding:'2px 8px',background:GN+'25',color:GN,borderRadius:6,fontSize:11,fontWeight:'bold'}}>✓ {t.task_done}</span>
                   <b style={{color:GR,fontSize:13,textDecoration:'line-through'}}>{item.topic}</b>
                 </div>
                 {item.desc&&<div style={{fontSize:12,color:GR,marginBottom:3}}>{item.desc}</div>}
-                <div style={{fontSize:11,color:GR}}>👤 {item.createdBy} → ✓ <b>{item.doneBy}</b> am {item.doneAt}{item.due&&<span> · ursprl. Frist: {item.due}</span>}</div>
+                <div style={{fontSize:11,color:GR}}>👤 {item.createdBy} → ✓ <b>{item.doneBy}</b> am {item.doneAt}{item.due&&<span> · {t.task_orig_deadline}: {item.due}</span>}</div>
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
-                <Btn sm outline onClick={()=>setDone(item.id,false)}>↩ Öffnen</Btn>
+                <Btn sm outline onClick={()=>setDone(item.id,false)}>↩ {t.task_reopen}</Btn>
                 {canEditThis&&<Btn sm danger onClick={()=>setDelId(item.id)}>✕</Btn>}
               </div>
             </div>
@@ -1120,9 +1131,11 @@ export function Tasks({data,save,user,t}){
 }
 
 // ════════════════════════════════════════════════════════════════
-// REMINDER POPUP (Login-Hatırlatma)
+// REMINDER POPUP — V7: vollständig übersetzt
+// WICHTIG: In App.jsx t={t} als Prop übergeben:
+//   <ReminderPopup user={user} data={data} t={t} onClose={...}/>
 // ════════════════════════════════════════════════════════════════
-export function ReminderPopup({user,data,onClose}){
+export function ReminderPopup({user,data,t,onClose}){
   const items=data.tasks||[];
   const contacts=data.contacts||[];
   const today=new Date().toISOString().split('T')[0];
@@ -1140,13 +1153,18 @@ export function ReminderPopup({user,data,onClose}){
   }
   function waLink(c,item){const phone=(c.mobile||c.phone||'').replace(/[^\d+]/g,'').replace(/^\+/,'');return `https://wa.me/${phone}?text=${encodeURIComponent(buildMsg(item))}`;}
   function mailLink(c,item){const subj=encodeURIComponent(`[ZINKPOWER] Erinnerung: ${item.topic}`);return `mailto:${c.email}?subject=${subj}&body=${encodeURIComponent(buildMsg(item))}`;}
-  function dueBadge(d){if(d<today)return {bg:RD,fg:'#fff',label:`⚠️ ÜBERFÄLLIG (${d})`};if(d===today)return {bg:RD,fg:'#fff',label:`🔴 HEUTE FÄLLIG (${d})`};return {bg:YL,fg:'#fff',label:`🟡 MORGEN FÄLLIG (${d})`};}
+  function dueBadge(d){
+    if(d<today)return {bg:RD,fg:'#fff',label:`⚠️ ${t.rem_overdue} (${d})`};
+    if(d===today)return {bg:RD,fg:'#fff',label:`🔴 ${t.rem_today} (${d})`};
+    return {bg:YL,fg:'#fff',label:`🟡 ${t.rem_tomorrow} (${d})`};
+  }
+  const countLabel=due.length===1?t.rem_count_singular:t.rem_count_plural;
   return <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
     <div style={{background:'#fff',borderRadius:12,padding:0,width:560,maxWidth:'100%',maxHeight:'85vh',overflowY:'auto',boxShadow:'0 8px 32px rgba(0,0,0,0.3)'}}>
       <div style={{background:P,color:'#fff',padding:'14px 18px',borderRadius:'12px 12px 0 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div>
-          <b style={{fontSize:15}}>🔔 Aufgaben-Erinnerung</b>
-          <div style={{fontSize:11,opacity:0.85,marginTop:2}}>{due.length} {due.length===1?'Aufgabe':'Aufgaben'} bald fällig oder überfällig</div>
+          <b style={{fontSize:15}}>🔔 {t.rem_title}</b>
+          <div style={{fontSize:11,opacity:0.85,marginTop:2}}>{due.length} {countLabel}</div>
         </div>
         <button onClick={onClose} style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',borderRadius:6,padding:'4px 10px',fontSize:18,cursor:'pointer'}}>✕</button>
       </div>
@@ -1159,10 +1177,10 @@ export function ReminderPopup({user,data,onClose}){
               <span style={{display:'inline-block',padding:'3px 10px',background:b.bg,color:b.fg,borderRadius:6,fontSize:11,fontWeight:'bold',marginBottom:6}}>{b.label}</span>
               <div style={{fontWeight:'bold',color:P,fontSize:14}}>{item.topic}</div>
               {item.desc&&<div style={{fontSize:12,color:GR,marginTop:3}}>{item.desc}</div>}
-              <div style={{fontSize:11,color:GR,marginTop:4}}>👤 erstellt von {item.createdBy}</div>
+              <div style={{fontSize:11,color:GR,marginTop:4}}>👤 {t.task_created_by} {item.createdBy}</div>
             </div>
             {contactList.length>0&&<div style={{marginTop:8,padding:8,background:'#f8f9fc',borderRadius:6}}>
-              <div style={{fontSize:11,color:GR,marginBottom:6,fontWeight:'bold'}}>📤 Erinnerung senden an:</div>
+              <div style={{fontSize:11,color:GR,marginBottom:6,fontWeight:'bold'}}>📤 {t.rem_send_to}:</div>
               {contactList.map(c=>(
                 <div key={c.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,flexWrap:'wrap'}}>
                   <Av name={c.name} size={26}/>
@@ -1177,11 +1195,51 @@ export function ReminderPopup({user,data,onClose}){
                 </div>
               ))}
             </div>}
-            {contactList.length===0&&<div style={{fontSize:11,color:GR,fontStyle:'italic',marginTop:6}}>Kein externer Kontakt zugewiesen – Erinnerung kann nur intern weitergegeben werden.</div>}
+            {contactList.length===0&&<div style={{fontSize:11,color:GR,fontStyle:'italic',marginTop:6}}>{t.rem_no_contact}</div>}
           </div>;
         })}
         <div style={{marginTop:14,display:'flex',justifyContent:'flex-end'}}>
-          <Btn onClick={onClose}>OK, verstanden</Btn>
+          <Btn onClick={onClose}>{t.rem_ok}</Btn>
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
+// ════════════════════════════════════════════════════════════════
+// NEW TASKS POPUP — V8: Benachrichtigung über neu zugewiesene Aufgaben
+// Props: user, data, t, lang, newTaskIds[], onClose
+// ════════════════════════════════════════════════════════════════
+export function NewTasksPopup({user,data,t,lang,newTaskIds,onClose}){
+  const tasks=(data.tasks||[]).filter(tk=>(newTaskIds||[]).includes(tk.id));
+  if(tasks.length===0)return null;
+  const isTr=lang==='tr';
+  const title=isTr?'Sana atanan yeni görevler':'Neue Aufgaben für dich';
+  const sub=isTr
+    ?`${tasks.length} yeni görev sana atandı`
+    :(tasks.length===1?'1 neue Aufgabe wurde dir zugewiesen':`${tasks.length} neue Aufgaben wurden dir zugewiesen`);
+  return <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:10000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+    <div style={{background:'#fff',borderRadius:12,padding:0,width:560,maxWidth:'100%',maxHeight:'85vh',overflowY:'auto',boxShadow:'0 8px 32px rgba(0,0,0,0.3)'}}>
+      <div style={{background:P,color:'#fff',padding:'14px 18px',borderRadius:'12px 12px 0 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div>
+          <b style={{fontSize:15}}>⭐ {title}</b>
+          <div style={{fontSize:11,opacity:0.85,marginTop:2}}>{sub}</div>
+        </div>
+        <button onClick={onClose} style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',borderRadius:6,padding:'4px 10px',fontSize:18,cursor:'pointer'}}>✕</button>
+      </div>
+      <div style={{padding:16}}>
+        {tasks.map(tk=>(
+          <div key={tk.id} style={{border:`1px solid ${LT}`,borderRadius:8,padding:12,marginBottom:10}}>
+            <div style={{fontWeight:'bold',color:P,fontSize:14,marginBottom:3}}>{tk.topic}</div>
+            {tk.desc&&<div style={{fontSize:12,color:GR,marginTop:3}}>{tk.desc}</div>}
+            <div style={{fontSize:11,color:GR,marginTop:6}}>
+              👤 {t.task_created_by} <b>{tk.createdBy}</b>
+              {tk.due&&<span> · 📅 {t.task_due}: <b>{tk.due}</b></span>}
+            </div>
+          </div>
+        ))}
+        <div style={{marginTop:14,display:'flex',justifyContent:'flex-end'}}>
+          <Btn onClick={onClose}>{t.rem_ok}</Btn>
         </div>
       </div>
     </div>

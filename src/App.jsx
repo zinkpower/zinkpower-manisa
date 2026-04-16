@@ -1,3 +1,4 @@
+// ZINKPOWER Manisa — App.jsx V8
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -11,7 +12,7 @@ import {
 import {
   Dashboard, Schedule, Contracts, ChangeOrders, Approvals,
   Issues, Diary, Documents, Contacts, Gallery, Suppliers,
-  Tasks, ReminderPopup,
+  Tasks, ReminderPopup, NewTasksPopup,
 } from "./modules_core.jsx";
 
 import {
@@ -54,8 +55,6 @@ function Login({ setUser, lang, setLang, t, allUsers, pins }) {
         background:'#fff', borderRadius:14, padding:36, width:310,
         boxShadow:'0 4px 24px rgba(40,56,152,0.15)'
       }}>
-        {/* LOGO – Alper: ersetze diesen Block durch:
-             <img src="/logo.png" width="260" alt="ZINKPOWER" style={{display:'block',margin:'0 auto 16px'}}/> */}
         <div style={{ textAlign:'center', marginBottom:20 }}>
           <div style={{
             fontFamily:'"Arial Black","Arial Bold",Arial', fontWeight:900,
@@ -136,16 +135,20 @@ export default function App() {
   const [data, setData]       = useState(() => ({ ...DEF }));
   const [sideOpen, setSideOpen] = useState(true);
   const [navOpen, setNavOpen]   = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
-  // PIN selbst ändern
   const [pinModal, setPinModal] = useState(false);
   const [myPin, setMyPin]       = useState('');
   const [myPin2, setMyPin2]     = useState('');
   const [myPinErr, setMyPinErr] = useState('');
 
-  // ReminderPopup
   const [reminderShown, setReminderShown] = useState(false);
   const [showReminder, setShowReminder]   = useState(false);
+
+  // V8: Neu zugewiesene Aufgaben-Benachrichtigung
+  const [newTaskIds, setNewTaskIds]             = useState([]);
+  const [showNewTasks, setShowNewTasks]         = useState(false);
+  const [newTaskCheckDone, setNewTaskCheckDone] = useState(false);
 
   const isMobile = useIsMobile();
   const t = T[lang] || T.de;
@@ -163,11 +166,11 @@ export default function App() {
         });
         setData(d => ({ ...d, ...loaded }));
       }
+      setDataLoaded(true);
     }
     load();
   }, []);
 
-  // ── Speichern (lokal + Supabase) ──────────────────────────────
   async function save(key, val) {
     setData(d => ({ ...d, [key]: val }));
     await supabase.from('project_data').upsert({
@@ -177,7 +180,6 @@ export default function App() {
     });
   }
 
-  // ── PIN selbst ändern ─────────────────────────────────────────
   function saveMyPin() {
     if (myPin.length !== 4 || !/^\d{4}$/.test(myPin)) {
       setMyPinErr('PIN tam 4 rakam olmalı / PIN muss 4 Ziffern sein');
@@ -201,12 +203,40 @@ export default function App() {
     }
   }, [user, reminderShown]);
 
-  // ── BUGFIX (Talimat 6 / V15): Nach Logout zurücksetzen ───────
+  // ── V8: Check auf neu zugewiesene Aufgaben ───────────────────
+  // Läuft nach Login UND wenn Daten aus Supabase geladen sind
+  useEffect(() => {
+    if (!user || !dataLoaded || newTaskCheckDone) return;
+    const myTaskIds = (data.tasks || [])
+      .filter(tk => tk.status !== 'done')
+      .filter(tk => (tk.assignedUsers || []).includes(user.id))
+      .map(tk => tk.id);
+    const lastSeenMap = data.lastSeenTasks || {};
+    const hadPreviousSession = user.id in lastSeenMap;
+    const lastSeen = lastSeenMap[user.id] || [];
+    // Beim allerersten Login: keine "neuen" markieren, nur initialisieren
+    const newIds = hadPreviousSession
+      ? myTaskIds.filter(id => !lastSeen.includes(id))
+      : [];
+    if (newIds.length > 0) {
+      setNewTaskIds(newIds);
+      setShowNewTasks(true);
+    }
+    // lastSeen immer auf aktuellen Stand bringen
+    const updated = { ...lastSeenMap, [user.id]: myTaskIds };
+    save('lastSeenTasks', updated);
+    setNewTaskCheckDone(true);
+  }, [user, dataLoaded, newTaskCheckDone, data.tasks]);
+
+  // ── Nach Logout zurücksetzen ─────────────────────────────────
   useEffect(() => {
     if (!user) {
       setReminderShown(false);
       setShowReminder(false);
       setMod('dash');
+      setNewTaskCheckDone(false);
+      setShowNewTasks(false);
+      setNewTaskIds([]);
     }
   }, [user]);
 
@@ -223,10 +253,11 @@ export default function App() {
   }
 
   // ── Navigation ───────────────────────────────────────────────
+  const hasNewTaskBadge = newTaskIds.length > 0;
   const nav = [
     { id:'dash',         l:t.dash,      i:'🏠' },
     { id:'schedule',     l:t.schedule,  i:'📅' },
-    { id:'tasks',        l:'Aufgaben',  i:'📋' },
+    { id:'tasks',        l:t.tasks,     i:'📋', badge: hasNewTaskBadge },
     { id:'contracts',    l:t.contracts, i:'📄' },
     { id:'changeOrders', l:t.co,        i:'➕' },
     { id:'approvals',    l:t.approvals, i:'✅' },
@@ -262,7 +293,6 @@ export default function App() {
     users:        <UserManagement {...mp}/>,
   };
 
-  // ── PIN-Dialog (Mobile + Desktop) ────────────────────────────
   const pinDialog = pinModal && (
     <div style={{
       position:'fixed', inset:0, background:'rgba(0,0,0,0.45)',
@@ -306,6 +336,21 @@ export default function App() {
     </div>
   );
 
+  // V8: Popups koordinieren – NewTasksPopup zuerst, danach ReminderPopup
+  const popups = (
+    <>
+      {showNewTasks && <NewTasksPopup
+        user={user} data={data} t={t} lang={lang}
+        newTaskIds={newTaskIds}
+        onClose={() => setShowNewTasks(false)}
+      />}
+      {showReminder && !showNewTasks && <ReminderPopup
+        user={user} data={data} t={t}
+        onClose={() => setShowReminder(false)}
+      />}
+    </>
+  );
+
   // ════════════════════════════════════════════════════════════
   // MOBILE LAYOUT
   // ════════════════════════════════════════════════════════════
@@ -313,9 +358,8 @@ export default function App() {
     return (
       <>
         {pinDialog}
-        {showReminder && <ReminderPopup user={user} data={data} onClose={() => setShowReminder(false)}/>}
+        {popups}
         <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh', fontFamily:'Arial', background:'#f0f2f8' }}>
-          {/* Header */}
           <div style={{
             background:P, color:'#fff', padding:'12px 16px',
             display:'flex', alignItems:'center', gap:12, flexShrink:0
@@ -330,14 +374,18 @@ export default function App() {
               style={{
                 background:'rgba(255,255,255,0.15)', border:'none',
                 color:'#fff', borderRadius:8, padding:'8px 12px',
-                fontSize:18, cursor:'pointer', lineHeight:1
+                fontSize:18, cursor:'pointer', lineHeight:1, position:'relative'
               }}
             >
               {navOpen ? '✕' : '☰'}
+              {!navOpen && hasNewTaskBadge && <span style={{
+                position:'absolute', top:4, right:6,
+                width:10, height:10, background:RD, borderRadius:'50%',
+                border:'2px solid '+P
+              }}/>}
             </button>
           </div>
 
-          {/* Aufklappbare Navigation */}
           {navOpen && (
             <div style={{ background:P, borderBottom:'2px solid rgba(255,255,255,0.2)' }}>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1 }}>
@@ -351,7 +399,14 @@ export default function App() {
                       borderRadius:8, margin:4
                     }}
                   >
-                    <div style={{ fontSize:20 }}>{n.i}</div>
+                    <div style={{ fontSize:20, position:'relative', display:'inline-block' }}>
+                      {n.i}
+                      {n.badge && <span style={{
+                        position:'absolute', top:-2, right:-6,
+                        width:10, height:10, background:RD, borderRadius:'50%',
+                        border:'2px solid '+P
+                      }}/>}
+                    </div>
                     <div style={{ fontSize:9, color:'rgba(255,255,255,0.85)', marginTop:2, lineHeight:1.2 }}>{n.l}</div>
                   </div>
                 ))}
@@ -396,7 +451,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Modulkopf */}
           <div style={{
             background:'#fff', padding:'8px 16px',
             borderBottom:'1px solid #eee',
@@ -406,7 +460,6 @@ export default function App() {
             <span style={{ fontWeight:'bold', color:P, fontSize:14 }}>{nav.find(n => n.id === mod)?.l}</span>
           </div>
 
-          {/* Inhalt */}
           <div style={{ flex:1, overflowY:'auto', padding:12 }}>
             {views[mod] || <div style={{ color:GR }}>{t.no_data}</div>}
           </div>
@@ -421,9 +474,8 @@ export default function App() {
   return (
     <>
       {pinDialog}
-      {showReminder && <ReminderPopup user={user} data={data} onClose={() => setShowReminder(false)}/>}
+      {popups}
       <div style={{ display:'flex', minHeight:'100vh', fontFamily:'Arial', background:'#f0f2f8' }}>
-        {/* Sidebar */}
         <div style={{
           width: sideOpen ? 210 : 48,
           background:P, color:'#fff',
@@ -431,7 +483,6 @@ export default function App() {
           transition:'width 0.2s', flexShrink:0,
           overflow:'hidden', minHeight:'100vh'
         }}>
-          {/* Logo / Toggle */}
           <div
             onClick={() => setSideOpen(s => !s)}
             style={{
@@ -450,7 +501,6 @@ export default function App() {
             <span style={{ fontSize:14, flexShrink:0, color:'#fff' }}>{sideOpen ? '◀' : '▶'}</span>
           </div>
 
-          {/* Nav-Items */}
           <div style={{ flex:1, overflowY:'auto' }}>
             {nav.map(n => (
               <div
@@ -464,13 +514,19 @@ export default function App() {
                   overflow:'hidden'
                 }}
               >
-                <span style={{ fontSize:15, flexShrink:0 }}>{n.i}</span>
+                <span style={{ fontSize:15, flexShrink:0, position:'relative', display:'inline-block' }}>
+                  {n.i}
+                  {n.badge && <span style={{
+                    position:'absolute', top:-3, right:-5,
+                    width:9, height:9, background:RD, borderRadius:'50%',
+                    border:'1.5px solid '+P
+                  }}/>}
+                </span>
                 {sideOpen && <span style={{ fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{n.l}</span>}
               </div>
             ))}
           </div>
 
-          {/* Footer */}
           <div style={{ padding:'10px 8px', borderTop:'1px solid rgba(255,255,255,0.15)' }}>
             {sideOpen && (
               <div style={{ display:'flex', gap:4, marginBottom:8 }}>
@@ -527,7 +583,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Inhalt */}
         <div style={{ flex:1, overflowY:'auto', padding:20 }}>
           {views[mod] || <div style={{ color:GR }}>{t.no_data}</div>}
         </div>
