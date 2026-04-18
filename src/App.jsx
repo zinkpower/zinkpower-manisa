@@ -1,4 +1,4 @@
-// ZINKPOWER Manisa — App.jsx V8
+// ZINKPOWER Manisa — App.jsx V11
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -171,6 +171,7 @@ export default function App() {
     load();
   }, []);
 
+  // ── Speichern (lokal + Supabase) ──────────────────────────────
   async function save(key, val) {
     setData(d => ({ ...d, [key]: val }));
     await supabase.from('project_data').upsert({
@@ -180,6 +181,21 @@ export default function App() {
     });
   }
 
+  // ── Datei in Supabase Storage hochladen (V11) ─────────────────
+  async function uploadFile(file, folder='files') {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `${folder}/${Date.now()}_${safeName}`;
+    const { error } = await supabase.storage.from('project-files').upload(path, file);
+    if (error) {
+      console.error('Upload error:', error);
+      alert('Upload fehlgeschlagen / Yükleme başarısız:\n' + (error.message || ''));
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from('project-files').getPublicUrl(path);
+    return urlData.publicUrl;
+  }
+
+  // ── PIN selbst ändern ─────────────────────────────────────────
   function saveMyPin() {
     if (myPin.length !== 4 || !/^\d{4}$/.test(myPin)) {
       setMyPinErr('PIN tam 4 rakam olmalı / PIN muss 4 Ziffern sein');
@@ -204,7 +220,6 @@ export default function App() {
   }, [user, reminderShown]);
 
   // ── V8: Check auf neu zugewiesene Aufgaben ───────────────────
-  // Läuft nach Login UND wenn Daten aus Supabase geladen sind
   useEffect(() => {
     if (!user || !dataLoaded || newTaskCheckDone) return;
     const myTaskIds = (data.tasks || [])
@@ -214,7 +229,6 @@ export default function App() {
     const lastSeenMap = data.lastSeenTasks || {};
     const hadPreviousSession = user.id in lastSeenMap;
     const lastSeen = lastSeenMap[user.id] || [];
-    // Beim allerersten Login: keine "neuen" markieren, nur initialisieren
     const newIds = hadPreviousSession
       ? myTaskIds.filter(id => !lastSeen.includes(id))
       : [];
@@ -222,7 +236,6 @@ export default function App() {
       setNewTaskIds(newIds);
       setShowNewTasks(true);
     }
-    // lastSeen immer auf aktuellen Stand bringen
     const updated = { ...lastSeenMap, [user.id]: myTaskIds };
     save('lastSeenTasks', updated);
     setNewTaskCheckDone(true);
@@ -274,7 +287,7 @@ export default function App() {
         : []),
   ];
 
-  const mp = { data, save, user, t, isMobile };
+  const mp = { data, save, uploadFile, user, t, isMobile };
 
   const views = {
     dash:         <Dashboard {...mp}/>,
