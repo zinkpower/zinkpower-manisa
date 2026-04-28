@@ -1,4 +1,7 @@
-// ZINKPOWER Manisa — App.jsx V11
+// ZINKPOWER Manisa — App.jsx V12
+// Änderungen ggü. V11:
+// - save() mit Error-Handling (sichtbarer Alert bei Fehler)
+// - Imports aus modules/ statt aus modules_core.jsx und modules_admin.jsx
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -9,15 +12,22 @@ import {
   Btn, IForm, Fi, Fs,
 } from "./core.jsx";
 
-import {
-  Dashboard, Schedule, Contracts, ChangeOrders, Approvals,
-  Issues, Diary, Documents, Contacts, Gallery, Suppliers,
-  Tasks, ReminderPopup, NewTasksPopup,
-} from "./modules_core.jsx";
-
-import {
-  Budget, UserManagement,
-} from "./modules_admin.jsx";
+import Dashboard      from "./modules/Dashboard.jsx";
+import Schedule       from "./modules/Schedule.jsx";
+import Contracts      from "./modules/Contracts.jsx";
+import ChangeOrders   from "./modules/ChangeOrders.jsx";
+import Approvals      from "./modules/Approvals.jsx";
+import Issues         from "./modules/Issues.jsx";
+import Diary          from "./modules/Diary.jsx";
+import Documents      from "./modules/Documents.jsx";
+import Contacts       from "./modules/Contacts.jsx";
+import Gallery        from "./modules/Gallery.jsx";
+import Suppliers      from "./modules/Suppliers.jsx";
+import Tasks          from "./modules/Tasks.jsx";
+import ReminderPopup  from "./modules/ReminderPopup.jsx";
+import NewTasksPopup  from "./modules/NewTasksPopup.jsx";
+import Budget         from "./modules/Budget.jsx";
+import UserManagement from "./modules/UserManagement.jsx";
 
 // ════════════════════════════════════════════════════════════════
 // SUPABASE
@@ -145,7 +155,6 @@ export default function App() {
   const [reminderShown, setReminderShown] = useState(false);
   const [showReminder, setShowReminder]   = useState(false);
 
-  // V8: Neu zugewiesene Aufgaben-Benachrichtigung
   const [newTaskIds, setNewTaskIds]             = useState([]);
   const [showNewTasks, setShowNewTasks]         = useState(false);
   const [newTaskCheckDone, setNewTaskCheckDone] = useState(false);
@@ -171,17 +180,27 @@ export default function App() {
     load();
   }, []);
 
-  // ── Speichern (lokal + Supabase) ──────────────────────────────
+  // ── V12: Speichern mit Error-Handling ─────────────────────────
   async function save(key, val) {
     setData(d => ({ ...d, [key]: val }));
-    await supabase.from('project_data').upsert({
+    const { error } = await supabase.from('project_data').upsert({
       key,
       value: JSON.stringify(val),
       updated_at: new Date().toISOString(),
     });
+    if (error) {
+      console.error('[ZINKPOWER save] failed:', key, error);
+      alert(
+        'Speichern fehlgeschlagen / Kayıt başarısız\n\n' +
+        `Modul: ${key}\n` +
+        `Fehler: ${error.message || error}\n\n` +
+        'Daten wurden NICHT in der Datenbank gespeichert.\n' +
+        'Veriler veritabanına KAYDEDİLMEDİ.'
+      );
+    }
   }
 
-  // ── Datei in Supabase Storage hochladen (V11) ─────────────────
+  // ── Datei in Supabase Storage hochladen ─────────────────────
   async function uploadFile(file, folder='files') {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = `${folder}/${Date.now()}_${safeName}`;
@@ -211,7 +230,6 @@ export default function App() {
     setPinModal(false); setMyPin(''); setMyPin2(''); setMyPinErr('');
   }
 
-  // ── ReminderPopup nach Login einmalig zeigen ─────────────────
   useEffect(() => {
     if (user && !reminderShown) {
       setShowReminder(true);
@@ -219,7 +237,6 @@ export default function App() {
     }
   }, [user, reminderShown]);
 
-  // ── V8: Check auf neu zugewiesene Aufgaben ───────────────────
   useEffect(() => {
     if (!user || !dataLoaded || newTaskCheckDone) return;
     const myTaskIds = (data.tasks || [])
@@ -241,7 +258,6 @@ export default function App() {
     setNewTaskCheckDone(true);
   }, [user, dataLoaded, newTaskCheckDone, data.tasks]);
 
-  // ── Nach Logout zurücksetzen ─────────────────────────────────
   useEffect(() => {
     if (!user) {
       setReminderShown(false);
@@ -265,7 +281,6 @@ export default function App() {
     />;
   }
 
-  // ── Navigation ───────────────────────────────────────────────
   const hasNewTaskBadge = newTaskIds.length > 0;
   const nav = [
     { id:'dash',         l:t.dash,      i:'🏠' },
@@ -349,7 +364,6 @@ export default function App() {
     </div>
   );
 
-  // V8: Popups koordinieren – NewTasksPopup zuerst, danach ReminderPopup
   const popups = (
     <>
       {showNewTasks && <NewTasksPopup
