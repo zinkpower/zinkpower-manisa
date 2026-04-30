@@ -1,6 +1,6 @@
-// ZINKPOWER Manisa — modules/Diary.jsx V12
-// HAUPTFIX: Fotos werden jetzt nach Supabase Storage hochgeladen statt als Base64
-// im JSON gespeichert. Damit funktionieren neue Einträge wieder.
+// ZINKPOWER Manisa — modules/Diary.jsx V13
+// V13: Admin kann Bautagebuch-Einträge löschen (mit Bestätigung)
+// V12: Fotos werden nach Supabase Storage hochgeladen statt als Base64 im JSON
 import { useState, useEffect } from "react";
 import {
   P, GR, LT, GN, YL, RD,
@@ -11,6 +11,7 @@ import {
 export default function Diary({ data, save, uploadFile, user, t }) {
   const [items, setItems]       = useState(() => data.diary || []);
   const [show, setShow]         = useState(false);
+  const [delId, setDelId]       = useState(null);
   const [wx, setWx]             = useState(null);
   const [wxStatus, setWxStatus] = useState('loading');
   const today = new Date().toISOString().split('T')[0];
@@ -20,6 +21,7 @@ export default function Diary({ data, save, uploadFile, user, t }) {
   const [selDay,   setSelDay]   = useState(today);
   const ef = { date: today, workers: '', work_done: '', special: '', photos: [], wx: null };
   const [f, setF] = useState(ef);
+  const isAdmin = user.role === 'admin';
 
   // ── Wetter laden (Manisa) ─────────────────────────────────────
   useEffect(() => {
@@ -46,7 +48,6 @@ export default function Diary({ data, save, uploadFile, user, t }) {
     if (c <= 3)  return '⛅';
     if (c <= 48) return '🌫️';
     if (c <= 67) return '🌧️';
-    if (c <= 77) return '❄️';
     return '⛈️';
   }
 
@@ -58,6 +59,14 @@ export default function Diary({ data, save, uploadFile, user, t }) {
     setItems(u);
     save('diary', u);
     setShow(false);
+  }
+
+  // V13: Eintrag löschen (nur Admin)
+  function del(id) {
+    const u = items.filter(i => i.id !== id);
+    setItems(u);
+    save('diary', u);
+    setDelId(null);
   }
 
   // ── Kalender-Logik ────────────────────────────────────────────
@@ -75,6 +84,9 @@ export default function Diary({ data, save, uploadFile, user, t }) {
     if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
     else setCalMonth(m => m + 1);
   }
+
+  // V13: Eintrag für Lösch-Bestätigung holen
+  const delEntry = delId ? items.find(i => i.id === delId) : null;
 
   return (
     <div>
@@ -186,7 +198,6 @@ export default function Diary({ data, save, uploadFile, user, t }) {
           <Ft label={t.work_done} value={f.work_done} onChange={v => setF({ ...f, work_done:v })} rows={4}/>
           <Ft label={t.special}   value={f.special}   onChange={v => setF({ ...f, special:v })}/>
 
-          {/* V12: uploadFile & folder werden an PicUpload weitergereicht */}
           <PicUpload
             onPhoto={p => setF({ ...f, photos: [...f.photos, p] })}
             t={t}
@@ -207,6 +218,50 @@ export default function Diary({ data, save, uploadFile, user, t }) {
           <div style={{ display:'flex', gap:8 }}>
             <Btn outline onClick={() => setShow(false)}>{t.cancel}</Btn>
             <Btn onClick={add}>{t.save}</Btn>
+          </div>
+        </IForm>
+      )}
+
+      {/* V13: Lösch-Bestätigungs-Dialog */}
+      {delEntry && isAdmin && (
+        <IForm
+          title={`${t.diary} ${t.really_delete}`}
+          onClose={() => setDelId(null)}
+        >
+          <div style={{ fontSize:13, marginBottom:14 }}>
+            <div style={{
+              background: RD + '15', padding:'10px 12px',
+              borderRadius:8, marginBottom:10
+            }}>
+              <div style={{ fontWeight:'bold', color:RD, marginBottom:4 }}>
+                📅 {delEntry.date}
+              </div>
+              {delEntry.author && (
+                <div style={{ fontSize:11, color:GR }}>👤 {delEntry.author}</div>
+              )}
+              {delEntry.work_done && (
+                <div style={{ fontSize:12, color:GR, marginTop:6 }}>
+                  {delEntry.work_done.length > 120
+                    ? delEntry.work_done.slice(0, 120) + '…'
+                    : delEntry.work_done}
+                </div>
+              )}
+              {delEntry.photos && delEntry.photos.length > 0 && (
+                <div style={{ fontSize:11, color:GR, marginTop:6 }}>
+                  📷 {delEntry.photos.length} Foto{delEntry.photos.length > 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
+            <div style={{ color:RD, fontWeight:'bold' }}>
+              {t.really_delete}
+            </div>
+            <div style={{ fontSize:11, color:GR, marginTop:4 }}>
+              Diese Aktion kann nicht rückgängig gemacht werden / Bu işlem geri alınamaz
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <Btn outline onClick={() => setDelId(null)}>{t.cancel}</Btn>
+            <Btn danger onClick={() => del(delId)}>🗑 {t.delete}</Btn>
           </div>
         </IForm>
       )}
@@ -267,6 +322,19 @@ export default function Diary({ data, save, uploadFile, user, t }) {
                   </div>
                 )}
                 <Thumbs photos={e.photos}/>
+
+                {/* V13: Lösch-Button nur für Admin */}
+                {isAdmin && (
+                  <div style={{
+                    display:'flex', justifyContent:'flex-end',
+                    marginTop:10, paddingTop:8,
+                    borderTop:`1px solid ${LT}`
+                  }}>
+                    <Btn sm danger onClick={() => setDelId(e.id)}>
+                      🗑 {t.delete}
+                    </Btn>
+                  </div>
+                )}
               </Card>
             ))
           )}
