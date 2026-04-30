@@ -1,22 +1,20 @@
-// ZINKPOWER Manisa — core.jsx V12
-// Änderungen ggü. V11:
-// - PicUpload: Storage-fähig mit Fallback auf Base64
-// - CopyBtn: ergänzt (war in V11 importiert, aber teils fehlend)
+// ZINKPOWER Manisa — core.jsx V14
+// Änderungen ggü. V13:
+// - Übersetzungen für Login-Sperre (3 Fehlversuche) DE/TR
+// - DEF.lockState: {} als initialer State
+// - Sonst unverändert
 import { useState, useEffect, useRef } from "react";
 
 // ════════════════════════════════════════════════════════════════
-// FARBEN / RENKLER
+// FARBEN
 // ════════════════════════════════════════════════════════════════
-export const P  = '#283898';   // ZINKPOWER Blau (RAL 5002)
-export const GR = '#575756';   // ZINKPOWER Grau
-export const LT = '#dde3f5';   // Hellblau (Hintergründe)
-export const GN = '#27ae60';   // Grün (OK / im Plan)
-export const YL = '#e67e22';   // Gelb / Orange (Warnung)
-export const RD = '#e74c3c';   // Rot (kritisch)
+export const P  = '#283898';
+export const GR = '#575756';
+export const LT = '#dde3f5';
+export const GN = '#27ae60';
+export const YL = '#e67e22';
+export const RD = '#e74c3c';
 
-// ════════════════════════════════════════════════════════════════
-// NUTZER / KULLANICILAR (Core-Team, fest verdrahtet)
-// ════════════════════════════════════════════════════════════════
 export const CORE = [
   { id: 'peter',   name: 'Peter Siemund',  role: 'admin' },
   { id: 'alper',   name: 'Alper Bulca',    role: 'admin' },
@@ -24,9 +22,6 @@ export const CORE = [
   { id: 'felix',   name: 'Felix Holbe',    role: 'approver' },
 ];
 
-// ════════════════════════════════════════════════════════════════
-// BERECHTIGUNGEN für extra-Teilnehmer
-// ════════════════════════════════════════════════════════════════
 export const PERM_LIST = [
   { id: 'schedule',       label: 'Bauzeitenplan bearbeiten', labelTr: 'İnşaat takvimini düzenle' },
   { id: 'contracts_view', label: 'Verträge einsehen',        labelTr: 'Sözleşmeleri görüntüle' },
@@ -36,9 +31,6 @@ export const PERM_LIST = [
   { id: 'budget',         label: 'Budget einsehen',          labelTr: 'Bütçeyi görüntüle' },
 ];
 
-// ════════════════════════════════════════════════════════════════
-// HELPERS
-// ════════════════════════════════════════════════════════════════
 export function getInit(name) {
   const p = (name || '?').trim().split(/\s+/);
   return p.length < 2
@@ -46,9 +38,6 @@ export function getInit(name) {
     : (p[0][0] + p[p.length - 1][0]).toUpperCase();
 }
 
-// ════════════════════════════════════════════════════════════════
-// MOBILE-HOOK
-// ════════════════════════════════════════════════════════════════
 export function useIsMobile() {
   const [mob, setMob] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -60,7 +49,88 @@ export function useIsMobile() {
 }
 
 // ════════════════════════════════════════════════════════════════
-// KALENDER-KONSTANTEN
+// PASSWORT-UTILITIES (V13)
+// ════════════════════════════════════════════════════════════════
+export function isLegacyPin(stored) {
+  return typeof stored === 'string';
+}
+
+export function validatePassword(pw) {
+  if (!pw || pw.length < 8) return 'pw_err_length';
+  if (!/\p{Lu}/u.test(pw))  return 'pw_err_upper';
+  if (!/\p{N}/u.test(pw))   return 'pw_err_digit';
+  if (!/[^\p{L}\p{N}]/u.test(pw)) return 'pw_err_special';
+  return null;
+}
+
+function bytesToB64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function b64ToBytes(b64) {
+  const s = atob(b64);
+  const bytes = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+  return bytes;
+}
+
+const PBKDF2_ITERATIONS = 100000;
+
+async function deriveBits(password, salt) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  return crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    key,
+    256
+  );
+}
+
+export async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const bits = await deriveBits(password, salt);
+  return {
+    v: 2,
+    salt: bytesToB64(salt),
+    hash: bytesToB64(new Uint8Array(bits)),
+  };
+}
+
+export async function verifyPassword(password, stored) {
+  if (!stored || typeof stored !== 'object' || !stored.salt || !stored.hash) return false;
+  try {
+    const salt = b64ToBytes(stored.salt);
+    const bits = await deriveBits(password, salt);
+    const computed = bytesToB64(new Uint8Array(bits));
+    if (computed.length !== stored.hash.length) return false;
+    let diff = 0;
+    for (let i = 0; i < computed.length; i++) {
+      diff |= computed.charCodeAt(i) ^ stored.hash.charCodeAt(i);
+    }
+    return diff === 0;
+  } catch (e) {
+    console.error('verifyPassword error:', e);
+    return false;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// V14: LOCK-HELFER (3 Fehlversuche)
+// ════════════════════════════════════════════════════════════════
+export const MAX_LOGIN_ATTEMPTS = 3;
+
+export function getLock(lockState, uid) {
+  return (lockState && lockState[uid]) || { fails: 0, locked: false };
+}
+
+// ════════════════════════════════════════════════════════════════
+// KALENDER
 // ════════════════════════════════════════════════════════════════
 export const MNAMES = [
   'Januar / Ocak', 'Februar / Şubat', 'März / Mart', 'April / Nisan',
@@ -70,7 +140,7 @@ export const MNAMES = [
 export const DNAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 // ════════════════════════════════════════════════════════════════
-// ÜBERSETZUNGEN / ÇEVİRİLER
+// ÜBERSETZUNGEN
 // ════════════════════════════════════════════════════════════════
 export const T = {
   de: {
@@ -107,7 +177,36 @@ export const T = {
     task_delete_q:'Aufgabe löschen?', task_info_nonadmin:'Du siehst nur Aufgaben, die du erstellt hast oder die dir zugewiesen wurden.',
     rem_title:'Erinnerung: fällige Aufgaben', rem_overdue:'ÜBERFÄLLIG', rem_today:'HEUTE',
     rem_tomorrow:'MORGEN', rem_count_singular:'Aufgabe fällig', rem_count_plural:'Aufgaben fällig',
-    rem_send_to:'Senden an', rem_no_contact:'Kein Kontakt zugewiesen', rem_ok:'OK, verstanden'
+    rem_send_to:'Senden an', rem_no_contact:'Kein Kontakt zugewiesen', rem_ok:'OK, verstanden',
+
+    // V13: Passwort-Flow
+    password:'Passwort',
+    pin_or_password:'PIN / Passwort',
+    pw_change_required:'Passwort ändern erforderlich',
+    pw_change_intro:'Aus Sicherheitsgründen muss dein PIN durch ein neues Passwort ersetzt werden.',
+    pw_current:'Aktueller PIN / aktuelles Passwort',
+    pw_new:'Neues Passwort',
+    pw_repeat:'Passwort wiederholen',
+    pw_rules_title:'Anforderungen:',
+    pw_rule_length:'Mindestens 8 Zeichen',
+    pw_rule_upper:'Mindestens 1 Großbuchstabe',
+    pw_rule_digit:'Mindestens 1 Zahl',
+    pw_rule_special:'Mindestens 1 Sonderzeichen',
+    pw_err_length:'Mindestens 8 Zeichen erforderlich',
+    pw_err_upper:'Mindestens 1 Großbuchstabe erforderlich',
+    pw_err_digit:'Mindestens 1 Zahl erforderlich',
+    pw_err_special:'Mindestens 1 Sonderzeichen erforderlich',
+    pw_err_mismatch:'Passwörter stimmen nicht überein',
+    pw_err_current_wrong:'Aktueller PIN/Passwort falsch',
+    pw_err_wrong:'Falsches Passwort',
+    pw_change_btn:'Passwort speichern',
+    pw_processing:'Verarbeite…',
+
+    // V14: Lock (3 Fehlversuche)
+    err_attempts_2:'Falsches Passwort — noch 2 Versuche',
+    err_attempts_1:'Falsches Passwort — letzter Versuch!',
+    err_locked_now:'🔒 Account gesperrt! Bitte Admin kontaktieren.',
+    err_locked:'🔒 Account gesperrt — bitte Admin kontaktieren',
   },
   tr: {
     login:'Giriş Yap', sel:'Kullanıcı Seç', logout:'Çıkış', save:'Kaydet', add:'Ekle',
@@ -143,13 +242,39 @@ export const T = {
     task_delete_q:'Görev silinsin mi?', task_info_nonadmin:'Sadece oluşturduğunuz veya size atanan görevleri görüyorsunuz.',
     rem_title:'Hatırlatma: süresi dolan görevler', rem_overdue:'GECİKTİ', rem_today:'BUGÜN',
     rem_tomorrow:'YARIN', rem_count_singular:'görev son tarihi', rem_count_plural:'görev son tarihi',
-    rem_send_to:'Gönderilecek', rem_no_contact:'Kişi atanmamış', rem_ok:'Tamam, anladım'
+    rem_send_to:'Gönderilecek', rem_no_contact:'Kişi atanmamış', rem_ok:'Tamam, anladım',
+
+    // V13: Şifre akışı
+    password:'Şifre',
+    pin_or_password:'PIN / Şifre',
+    pw_change_required:'Şifre değiştirmek zorunlu',
+    pw_change_intro:'Güvenlik nedeniyle PIN\'iniz yeni bir şifre ile değiştirilmelidir.',
+    pw_current:'Mevcut PIN / şifre',
+    pw_new:'Yeni şifre',
+    pw_repeat:'Şifreyi tekrar girin',
+    pw_rules_title:'Gereksinimler:',
+    pw_rule_length:'En az 8 karakter',
+    pw_rule_upper:'En az 1 büyük harf',
+    pw_rule_digit:'En az 1 rakam',
+    pw_rule_special:'En az 1 özel karakter',
+    pw_err_length:'En az 8 karakter olmalı',
+    pw_err_upper:'En az 1 büyük harf olmalı',
+    pw_err_digit:'En az 1 rakam olmalı',
+    pw_err_special:'En az 1 özel karakter olmalı',
+    pw_err_mismatch:'Şifreler eşleşmiyor',
+    pw_err_current_wrong:'Mevcut PIN/şifre yanlış',
+    pw_err_wrong:'Yanlış şifre',
+    pw_change_btn:'Şifreyi kaydet',
+    pw_processing:'İşleniyor…',
+
+    // V14: Kilit (3 hatalı deneme)
+    err_attempts_2:'Yanlış şifre — 2 deneme kaldı',
+    err_attempts_1:'Yanlış şifre — son deneme!',
+    err_locked_now:'🔒 Hesap kilitlendi! Yöneticiyle iletişime geçin.',
+    err_locked:'🔒 Hesap kilitli — yöneticiyle iletişime geçin',
   },
 };
 
-// ════════════════════════════════════════════════════════════════
-// STANDARD-PHASEN (Bauzeitenplan)
-// ════════════════════════════════════════════════════════════════
 export const SCHED = [
   { id:1, phase:'Genehmigungen / İzinler',           ps:'2025-03-01', pe:'2025-04-30', as:'2025-03-01', ae:'2025-05-15', st:'warning' },
   { id:2, phase:'Erdarbeiten / Hafriyat',            ps:'2025-04-01', pe:'2025-06-30', as:'2025-04-15', ae:'2025-07-10', st:'warning' },
@@ -163,17 +288,11 @@ export const SCHED = [
 
 export const EF_PHASE = { phase:'', ps:'', pe:'', as:'', ae:'', st:'onTrack' };
 
-// ════════════════════════════════════════════════════════════════
-// LIEFERANTEN-KATEGORIEN
-// ════════════════════════════════════════════════════════════════
 export const SUP_CATS = [
   'Stahlbau', 'Beschichtung / Boya', 'Elektro', 'Logistik / Nakliye',
   'Beton', 'Isolierung', 'Montage', 'Sonstiges / Diğer'
 ];
 
-// ════════════════════════════════════════════════════════════════
-// STANDARDDATEN (initialer State, wird von Supabase überschrieben)
-// ════════════════════════════════════════════════════════════════
 export const DEF = {
   project: {
     name:'ZINKPOWER Manisa', loc:'Manisa, Türkiye',
@@ -202,6 +321,8 @@ export const DEF = {
   tasks: [],
   extraUsers: [],
   pins: { peter:'0000', alper:'0000', karsten:'0000', felix:'0000' },
+  // V14: Login-Fehlversuche je User
+  lockState: {},
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -280,10 +401,12 @@ export function IForm({ title, onClose, children }) {
         alignItems:'center', marginBottom:14
       }}>
         <b style={{ color:P, fontSize:14 }}>{title}</b>
-        <button
-          onClick={onClose}
-          style={{ background:'none', border:'none', fontSize:18, cursor:'pointer', color:GR }}
-        >✕</button>
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{ background:'none', border:'none', fontSize:18, cursor:'pointer', color:GR }}
+          >✕</button>
+        )}
       </div>
       {children}
     </div>
@@ -344,11 +467,6 @@ export function Fs({ label, value, onChange, opts }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════════
-// V12: PicUpload — Storage-fähig mit Fallback auf Base64
-// Wenn uploadFile prop übergeben wird → Supabase Storage
-// Ohne uploadFile prop → alte Base64-Variante (rückwärtskompatibel)
-// ════════════════════════════════════════════════════════════════
 export function PicUpload({ onPhoto, t, uploadFile, folder }) {
   const ref = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -358,7 +476,6 @@ export function PicUpload({ onPhoto, t, uploadFile, folder }) {
     if (!f) return;
     e.target.value = '';
 
-    // Neue Variante: Upload nach Supabase Storage
     if (uploadFile) {
       setBusy(true);
       const url = await uploadFile(f, folder || 'photos');
@@ -367,7 +484,6 @@ export function PicUpload({ onPhoto, t, uploadFile, folder }) {
       return;
     }
 
-    // Fallback: alte Base64-Variante
     const r = new FileReader();
     r.onload = ev => onPhoto(ev.target.result);
     r.readAsDataURL(f);
@@ -429,9 +545,6 @@ export function Av({ name, size }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════════
-// CopyBtn — Text in Zwischenablage kopieren
-// ════════════════════════════════════════════════════════════════
 export function CopyBtn({ text, t, sm }) {
   const [copied, setCopied] = useState(false);
   function copy(e) {
@@ -464,5 +577,33 @@ export function CopyBtn({ text, t, sm }) {
     >
       {copied ? '✓' : '📋'}
     </button>
+  );
+}
+
+export function PasswordRules({ pw, t }) {
+  const checks = [
+    { k:'pw_rule_length',  ok: pw.length >= 8 },
+    { k:'pw_rule_upper',   ok: /\p{Lu}/u.test(pw) },
+    { k:'pw_rule_digit',   ok: /\p{N}/u.test(pw) },
+    { k:'pw_rule_special', ok: /[^\p{L}\p{N}]/u.test(pw) },
+  ];
+  return (
+    <div style={{
+      background:'#f8f9fc', borderRadius:6, padding:'8px 12px',
+      marginBottom:10, fontSize:11
+    }}>
+      <div style={{ color:GR, marginBottom:4, fontWeight:'bold' }}>
+        {t.pw_rules_title}
+      </div>
+      {checks.map(c => (
+        <div key={c.k} style={{
+          display:'flex', alignItems:'center', gap:6, marginTop:2,
+          color: c.ok ? GN : GR
+        }}>
+          <span style={{ fontSize:12, lineHeight:1 }}>{c.ok ? '✓' : '○'}</span>
+          <span>{t[c.k]}</span>
+        </div>
+      ))}
+    </div>
   );
 }
