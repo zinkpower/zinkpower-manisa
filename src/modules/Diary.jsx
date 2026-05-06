@@ -1,17 +1,19 @@
-// ZINKPOWER Manisa — modules/Diary.jsx V13
-// V13: Admin kann Bautagebuch-Einträge löschen (mit Bestätigung)
-// V12: Fotos werden nach Supabase Storage hochgeladen statt als Base64 im JSON
+// ZINKPOWER Manisa — modules/Diary.jsx V14
+// V14: Klick auf Foto-Thumbnail öffnet Großansicht (wie in Gallery)
+// V13: Admin kann Bautagebuch-Einträge löschen
+// V12: Fotos werden nach Supabase Storage hochgeladen statt als Base64
 import { useState, useEffect } from "react";
 import {
   P, GR, LT, GN, YL, RD,
   MNAMES, DNAMES,
-  Btn, Card, IForm, Fi, Ft, PicUpload, Thumbs, PH, CopyBtn,
+  Btn, Card, IForm, Fi, Ft, PicUpload, PH, CopyBtn,
 } from "../core.jsx";
 
 export default function Diary({ data, save, uploadFile, user, t }) {
   const [items, setItems]       = useState(() => data.diary || []);
   const [show, setShow]         = useState(false);
   const [delId, setDelId]       = useState(null);
+  const [bigPhoto, setBigPhoto] = useState(null);   // V14: Großansicht
   const [wx, setWx]             = useState(null);
   const [wxStatus, setWxStatus] = useState('loading');
   const today = new Date().toISOString().split('T')[0];
@@ -61,7 +63,6 @@ export default function Diary({ data, save, uploadFile, user, t }) {
     setShow(false);
   }
 
-  // V13: Eintrag löschen (nur Admin)
   function del(id) {
     const u = items.filter(i => i.id !== id);
     setItems(u);
@@ -69,7 +70,7 @@ export default function Diary({ data, save, uploadFile, user, t }) {
     setDelId(null);
   }
 
-  // ── Kalender-Logik ────────────────────────────────────────────
+  // ── Kalender ──────────────────────────────────────────────────
   const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
   const firstWeekday = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
   const monthStr     = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
@@ -85,11 +86,85 @@ export default function Diary({ data, save, uploadFile, user, t }) {
     else setCalMonth(m => m + 1);
   }
 
-  // V13: Eintrag für Lösch-Bestätigung holen
   const delEntry = delId ? items.find(i => i.id === delId) : null;
+
+  // ── V14: Klickbare Thumbnails ─────────────────────────────────
+  function ClickableThumbs({ photos, entry }) {
+    if (!photos || !photos.length) return null;
+    return (
+      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:8 }}>
+        {photos.map((p, i) => (
+          <img
+            key={i}
+            src={p}
+            alt=""
+            onClick={() => setBigPhoto({
+              src: p,
+              date: entry?.date,
+              author: entry?.author,
+              index: i + 1,
+              total: photos.length
+            })}
+            style={{
+              width:54, height:54, objectFit:'cover',
+              borderRadius:6, border:`2px solid ${LT}`,
+              cursor:'pointer',
+              transition:'transform 0.15s, border-color 0.15s'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.borderColor = P;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.borderColor = LT;
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div>
+      {/* V14: Großansichts-Overlay */}
+      {bigPhoto && (
+        <div
+          onClick={() => setBigPhoto(null)}
+          style={{
+            position:'fixed', inset:0, background:'rgba(0,0,0,0.92)',
+            zIndex:9999, display:'flex', flexDirection:'column',
+            alignItems:'center', justifyContent:'center',
+            padding:16, cursor:'pointer'
+          }}
+        >
+          <img
+            src={bigPhoto.src}
+            alt=""
+            style={{
+              maxWidth:'100%', maxHeight:'85vh',
+              objectFit:'contain', borderRadius:8,
+              boxShadow:'0 8px 32px rgba(0,0,0,0.5)'
+            }}
+          />
+          <div style={{
+            color:'#fff', fontSize:13, marginTop:14,
+            textAlign:'center', lineHeight:1.5
+          }}>
+            {bigPhoto.date && <div>📅 {bigPhoto.date}</div>}
+            {bigPhoto.author && <div>👤 {bigPhoto.author}</div>}
+            {bigPhoto.total > 1 && (
+              <div style={{ opacity:0.7 }}>
+                {bigPhoto.index} / {bigPhoto.total}
+              </div>
+            )}
+            <div style={{ marginTop:8, fontSize:11, opacity:0.6 }}>
+              Klick zum Schließen / Kapatmak için tıkla
+            </div>
+          </div>
+        </div>
+      )}
+
       <PH title={t.diary}>
         <Btn onClick={() => {
           setF({ ...ef, date: selDay || today, wx: wx ? { ...wx } : null });
@@ -204,7 +279,7 @@ export default function Diary({ data, save, uploadFile, user, t }) {
             uploadFile={uploadFile}
             folder="diary"
           />
-          <Thumbs photos={f.photos}/>
+          <ClickableThumbs photos={f.photos} entry={null}/>
 
           {f.wx && (
             <div style={{
@@ -222,7 +297,7 @@ export default function Diary({ data, save, uploadFile, user, t }) {
         </IForm>
       )}
 
-      {/* V13: Lösch-Bestätigungs-Dialog */}
+      {/* Lösch-Bestätigungs-Dialog */}
       {delEntry && isAdmin && (
         <IForm
           title={`${t.diary} ${t.really_delete}`}
@@ -321,9 +396,8 @@ export default function Diary({ data, save, uploadFile, user, t }) {
                     ⚠️ {e.special}<CopyBtn text={e.special} t={t} sm/>
                   </div>
                 )}
-                <Thumbs photos={e.photos}/>
+                <ClickableThumbs photos={e.photos} entry={e}/>
 
-                {/* V13: Lösch-Button nur für Admin */}
                 {isAdmin && (
                   <div style={{
                     display:'flex', justifyContent:'flex-end',

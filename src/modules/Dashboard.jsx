@@ -1,4 +1,7 @@
-// ZINKPOWER Manisa — modules/Dashboard.jsx V12
+// ZINKPOWER Manisa — modules/Dashboard.jsx V14
+// V14: Bug-Fix — letzte 3 Bautagebuch-Einträge wurden nach 3 Einträgen "eingefroren"
+//      Ursache: slice(-3) auf bereits absteigend sortiertem Array → zeigte die ältesten
+//      Fix: explizite Sortierung nach createdDate (Eintragungs-Datum), dann slice(0,3)
 import { useState } from "react";
 import {
   P, GR, LT, GN, YL, RD,
@@ -15,6 +18,18 @@ export default function Dashboard({ data, save, user, t, isMobile }) {
   const app = (data.approvals || []).filter(x => x.status === 'open').length;
 
   function doSave() { save('project', f); setEditing(false); }
+
+  // V14: Letzte 3 Bautagebuch-Einträge — sortiert nach Eintragungs-Datum (createdDate),
+  // damit nachgetragene Einträge auch erscheinen
+  const recentDiary = [...(data.diary || [])]
+    .sort((a, b) => {
+      const da = a.createdDate || a.date || '';
+      const db = b.createdDate || b.date || '';
+      // Tie-break über id (Date.now()), damit Einträge vom selben Tag stabil sortiert sind
+      if (db !== da) return db.localeCompare(da);
+      return (b.id || 0) - (a.id || 0);
+    })
+    .slice(0, 3);
 
   return (
     <div>
@@ -78,9 +93,9 @@ export default function Dashboard({ data, save, user, t, isMobile }) {
         ))}
       </div>
 
-      {(data.diary || []).length > 0 && (
+      {recentDiary.length > 0 && (
         <Card title={t.diary}>
-          {(data.diary || []).slice(-3).reverse().map(e => (
+          {recentDiary.map(e => (
             <div key={e.id} style={{
               padding:'6px 0', borderBottom:'1px solid #f2f2f2', fontSize:12
             }}>
