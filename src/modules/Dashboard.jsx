@@ -1,7 +1,9 @@
-// ZINKPOWER Manisa — modules/Dashboard.jsx V14
-// V14: Bug-Fix — letzte 3 Bautagebuch-Einträge wurden nach 3 Einträgen "eingefroren"
-//      Ursache: slice(-3) auf bereits absteigend sortiertem Array → zeigte die ältesten
-//      Fix: explizite Sortierung nach createdDate (Eintragungs-Datum), dann slice(0,3)
+// ZINKPOWER Manisa — modules/Dashboard.jsx V15
+// V15: Sortierung nach Arbeitstag (date), nicht nach Eintragungsdatum (createdDate)
+//      → Dashboard zeigt die neuesten Arbeitstage oben, auch wenn ältere Tage
+//        nachträglich eingetragen werden
+// V14: Bug-Fix — letzte 3 Bautagebuch-Einträge waren nach 3 Einträgen "eingefroren"
+// V12: Original
 import { useState } from "react";
 import {
   P, GR, LT, GN, YL, RD,
@@ -19,13 +21,15 @@ export default function Dashboard({ data, save, user, t, isMobile }) {
 
   function doSave() { save('project', f); setEditing(false); }
 
-  // V14: Letzte 3 Bautagebuch-Einträge — sortiert nach Eintragungs-Datum (createdDate),
-  // damit nachgetragene Einträge auch erscheinen
+  // V15: Letzte 3 Bautagebuch-Einträge — sortiert nach Arbeitstag (date),
+  // nicht nach Eintragungs-Datum. So erscheinen die jüngsten Arbeitstage oben,
+  // unabhängig davon, wann sie eingetragen wurden.
   const recentDiary = [...(data.diary || [])]
     .sort((a, b) => {
-      const da = a.createdDate || a.date || '';
-      const db = b.createdDate || b.date || '';
-      // Tie-break über id (Date.now()), damit Einträge vom selben Tag stabil sortiert sind
+      const da = a.date || '';
+      const db = b.date || '';
+      // Tie-break über id (Date.now()), damit mehrere Einträge am selben Tag
+      // in stabiler Reihenfolge bleiben (zuletzt angelegter zuerst)
       if (db !== da) return db.localeCompare(da);
       return (b.id || 0) - (a.id || 0);
     })
