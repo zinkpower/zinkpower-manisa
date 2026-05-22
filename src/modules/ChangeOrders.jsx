@@ -1,10 +1,11 @@
-// ZINKPOWER Manisa — modules/ChangeOrders.jsx V15
+// ZINKPOWER Manisa — modules/ChangeOrders.jsx V16
+// V16: Datei-Anhänge zusätzlich zu Fotos
+//      - Mehrere Dateien pro Nachtrag (PDF, Word, Excel, DWG, ZIP, etc.)
+//      - Klick auf Datei öffnet sie in neuem Tab
+//      - Admin kann einzelne Anhänge wieder entfernen
 // V15: Admin kann Nachträge in jedem Status bearbeiten und löschen
-//      - Bearbeiten-Button (✏️) auf jeder Card, nur für Admin
-//      - Löschen-Button (🗑) auf jeder Card, nur für Admin, mit Bestätigung
-//      - Keine Status-abhängigen Sperren — Admin trägt Verantwortung
 // V12: Fix uploadFile prop + folder="changeorders"
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   P, GR, LT, GN, YL, RD,
   Btn, Card, IForm, Fi, Ft, PicUpload, Thumbs, PH, CopyBtn,
@@ -17,9 +18,53 @@ export default function ChangeOrders({ data, save, uploadFile, user, t }) {
   const [delId,  setDelId]  = useState(null);     // V15: Löschen
   const [revId,  setRevId]  = useState(null);
   const [cmt,    setCmt]    = useState('');
-  const ef = { title:'', desc:'', amount:'', contractor:'', photos:[] };
+  const ef = { title:'', desc:'', amount:'', contractor:'', photos:[], files:[] };
   const [f, setF] = useState(ef);
+  const [uploadingFile, setUploadingFile] = useState(false);   // V16
+  const fileRef = useRef(null);                                 // V16
   const isAdmin = user.role === 'admin';
+
+  // V16: Datei-Anhang Upload
+  async function handleFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingFile(true);
+    const url = await uploadFile(file, 'changeorders');
+    setUploadingFile(false);
+    if (url) {
+      setF(prev => ({
+        ...prev,
+        files: [...(prev.files || []), { url, name: file.name, size: file.size }]
+      }));
+    }
+  }
+
+  function removeFile(idx) {
+    setF(prev => ({
+      ...prev,
+      files: (prev.files || []).filter((_, i) => i !== idx)
+    }));
+  }
+
+  // V16: Datei-Icon je nach Endung
+  function fileIcon(name) {
+    const ext = (name || '').toLowerCase().split('.').pop();
+    if (['pdf'].includes(ext)) return '📄';
+    if (['doc','docx'].includes(ext)) return '📝';
+    if (['xls','xlsx','csv'].includes(ext)) return '📊';
+    if (['dwg','dxf'].includes(ext)) return '📐';
+    if (['zip','rar','7z'].includes(ext)) return '🗜️';
+    if (['jpg','jpeg','png','gif','webp','bmp'].includes(ext)) return '🖼️';
+    return '📎';
+  }
+
+  function fmtSize(bytes) {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024*1024) return Math.round(bytes/1024) + ' KB';
+    return (bytes / (1024*1024)).toFixed(1) + ' MB';
+  }
 
   function submit() {
     if (editId) {
@@ -46,7 +91,8 @@ export default function ChangeOrders({ data, save, uploadFile, user, t }) {
       desc:       item.desc       || '',
       amount:     item.amount     || '',
       contractor: item.contractor || '',
-      photos:     item.photos     || []
+      photos:     item.photos     || [],
+      files:      item.files      || []
     });
     setEditId(item.id);
     setShow(true);
@@ -119,6 +165,59 @@ export default function ChangeOrders({ data, save, uploadFile, user, t }) {
           />
           <Thumbs photos={f.photos}/>
 
+          {/* V16: Datei-Anhänge */}
+          <div style={{ marginTop:12, marginBottom:8 }}>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.dwg,.dxf,.zip,.rar,.7z,.txt,.rtf,image/*"
+              onChange={handleFile}
+              style={{ display:'none' }}
+            />
+            <Btn
+              sm outline
+              disabled={uploadingFile}
+              onClick={() => fileRef.current && fileRef.current.click()}
+            >
+              {uploadingFile ? '⏳ Upload…' : '📎 Datei anhängen / Dosya ekle'}
+            </Btn>
+          </div>
+
+          {/* V16: Anhang-Liste im Formular */}
+          {(f.files || []).length > 0 && (
+            <div style={{
+              background:'#f8f9fc', borderRadius:6,
+              padding:8, marginBottom:10
+            }}>
+              {f.files.map((file, idx) => (
+                <div key={idx} style={{
+                  display:'flex', alignItems:'center', gap:8,
+                  padding:'4px 6px', fontSize:12
+                }}>
+                  <span style={{ fontSize:14 }}>{fileIcon(file.name)}</span>
+                  <span style={{
+                    flex:1, color:P, fontWeight:'bold',
+                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'
+                  }}>{file.name}</span>
+                  {file.size && (
+                    <span style={{ fontSize:10, color:GR, flexShrink:0 }}>
+                      {fmtSize(file.size)}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => removeFile(idx)}
+                    style={{
+                      background:'none', border:'none', color:RD,
+                      cursor:'pointer', fontSize:14, padding:'0 4px',
+                      flexShrink:0
+                    }}
+                    title="Entfernen / Kaldır"
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ display:'flex', gap:8, marginTop:8 }}>
             <Btn outline onClick={() => { setShow(false); setEditId(null); setF(ef); }}>
               {t.cancel}
@@ -182,6 +281,42 @@ export default function ChangeOrders({ data, save, uploadFile, user, t }) {
             </div>
           </div>
           <Thumbs photos={rev.photos}/>
+
+          {/* V16: Anhänge im Review-Dialog */}
+          {(rev.files || []).length > 0 && (
+            <div style={{ marginTop:8, marginBottom:10, display:'flex', flexDirection:'column', gap:4 }}>
+              {rev.files.map((file, idx) => (
+                <a
+                  key={idx}
+                  href={file.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display:'flex', alignItems:'center', gap:8,
+                    padding:'5px 10px',
+                    background: P + '10',
+                    borderRadius:6,
+                    border: `1px solid ${P}25`,
+                    textDecoration:'none',
+                    fontSize:12, color:P
+                  }}
+                >
+                  <span style={{ fontSize:14 }}>{fileIcon(file.name)}</span>
+                  <span style={{
+                    flex:1, fontWeight:'bold',
+                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'
+                  }}>{file.name}</span>
+                  {file.size && (
+                    <span style={{ fontSize:10, color:GR, flexShrink:0 }}>
+                      {fmtSize(file.size)}
+                    </span>
+                  )}
+                  <span style={{ fontSize:11, color:P, flexShrink:0 }}>→</span>
+                </a>
+              ))}
+            </div>
+          )}
+
           <Ft label={t.comment} value={cmt} onChange={setCmt}/>
           <div style={{ display:'flex', gap:8, marginTop:4 }}>
             <Btn danger onClick={() => doReject(rev.id)}>✕ {t.reject}</Btn>
@@ -226,6 +361,41 @@ export default function ChangeOrders({ data, save, uploadFile, user, t }) {
                   </div>
                 )}
                 <Thumbs photos={item.photos}/>
+
+                {/* V16: Datei-Anhänge auf Card anzeigen */}
+                {(item.files || []).length > 0 && (
+                  <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:4 }}>
+                    {item.files.map((file, idx) => (
+                      <a
+                        key={idx}
+                        href={file.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          display:'flex', alignItems:'center', gap:8,
+                          padding:'5px 10px',
+                          background: P + '10',
+                          borderRadius:6,
+                          border: `1px solid ${P}25`,
+                          textDecoration:'none',
+                          fontSize:12, color:P
+                        }}
+                      >
+                        <span style={{ fontSize:14 }}>{fileIcon(file.name)}</span>
+                        <span style={{
+                          flex:1, fontWeight:'bold',
+                          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'
+                        }}>{file.name}</span>
+                        {file.size && (
+                          <span style={{ fontSize:10, color:GR, flexShrink:0 }}>
+                            {fmtSize(file.size)}
+                          </span>
+                        )}
+                        <span style={{ fontSize:11, color:P, flexShrink:0 }}>→</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
               <div style={{ textAlign:'right', marginLeft:12, flexShrink:0 }}>
                 <div style={{ fontSize:16, fontWeight:'bold', color:P, marginBottom:6 }}>
