@@ -1,5 +1,9 @@
-// ZINKPOWER Manisa — modules/ChangeOrders.jsx V12
-// Fix: uploadFile prop + folder="changeorders"
+// ZINKPOWER Manisa — modules/ChangeOrders.jsx V15
+// V15: Admin kann Nachträge in jedem Status bearbeiten und löschen
+//      - Bearbeiten-Button (✏️) auf jeder Card, nur für Admin
+//      - Löschen-Button (🗑) auf jeder Card, nur für Admin, mit Bestätigung
+//      - Keine Status-abhängigen Sperren — Admin trägt Verantwortung
+// V12: Fix uploadFile prop + folder="changeorders"
 import { useState } from "react";
 import {
   P, GR, LT, GN, YL, RD,
@@ -9,6 +13,8 @@ import {
 export default function ChangeOrders({ data, save, uploadFile, user, t }) {
   const [items,  setItems]  = useState(() => data.changeOrders || []);
   const [show,   setShow]   = useState(false);
+  const [editId, setEditId] = useState(null);     // V15: Bearbeiten
+  const [delId,  setDelId]  = useState(null);     // V15: Löschen
   const [revId,  setRevId]  = useState(null);
   const [cmt,    setCmt]    = useState('');
   const ef = { title:'', desc:'', amount:'', contractor:'', photos:[] };
@@ -16,19 +22,49 @@ export default function ChangeOrders({ data, save, uploadFile, user, t }) {
   const isAdmin = user.role === 'admin';
 
   function submit() {
-    const u = [...items, {
-      ...f, id: Date.now(), amount: Number(f.amount),
-      status:'submitted', by: user.name,
-      date: new Date().toISOString().split('T')[0]
-    }];
-    setItems(u); save('changeOrders', u); setShow(false); setF(ef);
+    if (editId) {
+      // V15: Bearbeiten — bestehenden Eintrag updaten
+      const u = items.map(i => i.id === editId
+        ? { ...i, ...f, amount: Number(f.amount) }
+        : i);
+      setItems(u); save('changeOrders', u);
+    } else {
+      // Neuer Eintrag
+      const u = [...items, {
+        ...f, id: Date.now(), amount: Number(f.amount),
+        status:'submitted', by: user.name,
+        date: new Date().toISOString().split('T')[0]
+      }];
+      setItems(u); save('changeOrders', u);
+    }
+    setShow(false); setEditId(null); setF(ef);
   }
+
+  function openEdit(item) {
+    setF({
+      title:      item.title      || '',
+      desc:       item.desc       || '',
+      amount:     item.amount     || '',
+      contractor: item.contractor || '',
+      photos:     item.photos     || []
+    });
+    setEditId(item.id);
+    setShow(true);
+  }
+
+  function del(id) {
+    const u = items.filter(i => i.id !== id);
+    setItems(u); save('changeOrders', u);
+    setDelId(null);
+  }
+
   function doReject(id) {
     const u = items.map(i => i.id === id
       ? { ...i, status:'rejected', comment: cmt, revBy: user.name }
       : i);
     setItems(u); save('changeOrders', u); setRevId(null); setCmt('');
   }
+
   function doConvert(id) {
     const item = items.find(i => i.id === id);
     if (!item) return;
@@ -51,16 +87,24 @@ export default function ChangeOrders({ data, save, uploadFile, user, t }) {
   }
 
   const rev    = items.find(i => i.id === revId);
+  const delItem = delId ? items.find(i => i.id === delId) : null;
   const sColor = { submitted:'#3498db', inReview:YL, converted:GN, rejected:RD, approved:GN };
   const sLabel = { submitted: t.submitted, inReview: t.inReview, converted:'Zum Auftrag',
                    rejected: t.rejected, approved: t.approved };
 
   return (
     <div>
-      <PH title={t.co}><Btn onClick={() => setShow(s => !s)}>+ {t.add}</Btn></PH>
+      <PH title={t.co}>
+        <Btn onClick={() => {
+          setF(ef); setEditId(null); setShow(s => !s);
+        }}>+ {t.add}</Btn>
+      </PH>
 
       {show && (
-        <IForm title={`${t.add} ${t.co}`} onClose={() => setShow(false)}>
+        <IForm
+          title={editId ? `${t.edit} ${t.co}` : `${t.add} ${t.co}`}
+          onClose={() => { setShow(false); setEditId(null); setF(ef); }}
+        >
           <Fi label={t.title}      value={f.title}      onChange={v => setF({ ...f, title:v })}/>
           <Fi label={t.contractor} value={f.contractor} onChange={v => setF({ ...f, contractor:v })}
               ph="Auftragnehmer / Müteahhit"/>
@@ -76,8 +120,50 @@ export default function ChangeOrders({ data, save, uploadFile, user, t }) {
           <Thumbs photos={f.photos}/>
 
           <div style={{ display:'flex', gap:8, marginTop:8 }}>
-            <Btn outline onClick={() => setShow(false)}>{t.cancel}</Btn>
-            <Btn onClick={submit}>{t.submitted}</Btn>
+            <Btn outline onClick={() => { setShow(false); setEditId(null); setF(ef); }}>
+              {t.cancel}
+            </Btn>
+            <Btn onClick={submit}>
+              {editId ? t.save : t.submitted}
+            </Btn>
+          </div>
+        </IForm>
+      )}
+
+      {/* V15: Lösch-Bestätigung */}
+      {delItem && isAdmin && (
+        <IForm
+          title={`${t.co} ${t.really_delete}`}
+          onClose={() => setDelId(null)}
+        >
+          <div style={{ fontSize:13, marginBottom:14 }}>
+            <div style={{
+              background: RD + '15', padding:'10px 12px',
+              borderRadius:8, marginBottom:10
+            }}>
+              <div style={{ fontWeight:'bold', color:RD, marginBottom:4 }}>
+                {delItem.title}
+              </div>
+              {delItem.contractor && (
+                <div style={{ fontSize:12, color:GR }}>🏢 {delItem.contractor}</div>
+              )}
+              <div style={{ fontSize:12, color:GR, marginTop:2 }}>
+                💶 {(delItem.amount || 0).toLocaleString()} €
+              </div>
+              <div style={{ fontSize:11, color:GR, marginTop:4 }}>
+                📅 {delItem.date} · 👤 {delItem.by} · Status: {sLabel[delItem.status] || delItem.status}
+              </div>
+            </div>
+            <div style={{ color:RD, fontWeight:'bold' }}>
+              {t.really_delete}
+            </div>
+            <div style={{ fontSize:11, color:GR, marginTop:4 }}>
+              Diese Aktion kann nicht rückgängig gemacht werden / Bu işlem geri alınamaz
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <Btn outline onClick={() => setDelId(null)}>{t.cancel}</Btn>
+            <Btn danger onClick={() => del(delId)}>🗑 {t.delete}</Btn>
           </div>
         </IForm>
       )}
@@ -149,10 +235,26 @@ export default function ChangeOrders({ data, save, uploadFile, user, t }) {
                   padding:'2px 9px', background: sc + '25', color: sc,
                   borderRadius:10, fontSize:11, fontWeight:'bold'
                 }}>{sl}</span>
+
                 {isAdmin && item.status === 'submitted' && (
                   <div style={{ marginTop:8 }}>
                     <Btn sm onClick={() => { setRevId(item.id); setCmt(''); }}>
                       🔍 {t.review}
+                    </Btn>
+                  </div>
+                )}
+
+                {/* V15: Edit + Delete für Admin in jedem Status */}
+                {isAdmin && (
+                  <div style={{
+                    marginTop:8, display:'flex', flexDirection:'column',
+                    gap:4, alignItems:'flex-end'
+                  }}>
+                    <Btn sm outline onClick={() => openEdit(item)}>
+                      ✏️ {t.edit}
+                    </Btn>
+                    <Btn sm danger onClick={() => setDelId(item.id)}>
+                      🗑 {t.delete}
                     </Btn>
                   </div>
                 )}
