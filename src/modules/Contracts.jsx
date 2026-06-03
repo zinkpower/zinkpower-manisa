@@ -1,8 +1,15 @@
-// ZINKPOWER Manisa — modules/Contracts.jsx V12
-// Wie V11: Storage bereits aktiv, kein zusätzlicher Fix nötig
+// ZINKPOWER Manisa — modules/Contracts.jsx V17
+// V17: Budget-Übersicht oben im Modul (4 Kacheln + Auslastungsbalken)
+//      - Verträge: Anzahl
+//      - Gebunden: Summe aller Vertragsbeträge
+//      - Restbudget für neue Aufträge: Gesamtbudget − Gebunden
+//      - Auslastung: Prozent (Gebunden / Gesamtbudget)
+//      - Farbiger Fortschrittsbalken wie im Budget-Modul
+//      - Quelle: data.budget.total (im Budget-Modul gepflegt)
+// V12: Storage bereits aktiv
 import { useState, useRef } from "react";
 import {
-  P, GR, GN, RD,
+  P, GR, LT, GN, YL, RD,
   Badge, Btn, Card, IForm, Fi, Ft, PH, CopyBtn,
 } from "../core.jsx";
 
@@ -63,7 +70,19 @@ export default function Contracts({ data, save, uploadFile, user, t }) {
   }
   function getFileUrl(item) { return item.fileUrl || item.file || null; }
 
-  const tot = items.reduce((s, c) => s + (c.amount || 0), 0);
+  // V17: Budget-Berechnungen
+  const committed   = items.reduce((s, c) => s + (c.amount || 0), 0);
+  const totalBudget = (data.budget && data.budget.total) || 0;
+  const remaining   = totalBudget - committed;
+  const pct         = totalBudget > 0
+    ? Math.min(100, (committed / totalBudget) * 100)
+    : 0;
+  const barColor = pct > 90 ? RD : pct > 70 ? YL : GN;
+
+  // Mio-Formatierung für große Beträge
+  function fmtM(v) {
+    return (v / 1e6).toFixed(2) + 'M €';
+  }
 
   return (
     <div>
@@ -71,19 +90,116 @@ export default function Contracts({ data, save, uploadFile, user, t }) {
         {canEdit && <Btn onClick={() => { setShow(s => !s); setF(ef); }}>+ {t.add}</Btn>}
       </PH>
 
+      {/* V17: 4-Kachel-Übersicht */}
       <div style={{
-        background:'#fff', borderRadius:10, padding:'12px 18px', marginBottom:12,
-        boxShadow:'0 1px 8px rgba(40,56,152,0.07)', display:'flex', gap:28
+        display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))',
+        gap:10, marginBottom:12
       }}>
-        <div>
-          <div style={{ fontSize:11, color:GR }}>{t.contracts}</div>
+        {/* Verträge (Anzahl) */}
+        <div style={{
+          background:'#fff', borderRadius:10, padding:'12px 14px',
+          boxShadow:'0 1px 8px rgba(40,56,152,0.07)',
+          borderTop:`3px solid ${P}`
+        }}>
+          <div style={{ fontSize:11, color:GR, marginBottom:4 }}>{t.contracts}</div>
           <div style={{ fontSize:22, fontWeight:'bold', color:P }}>{items.length}</div>
         </div>
-        <div>
-          <div style={{ fontSize:11, color:GR }}>{t.committed}</div>
-          <div style={{ fontSize:22, fontWeight:'bold', color:P }}>{(tot/1e6).toFixed(2)}M €</div>
+
+        {/* Gebunden */}
+        <div style={{
+          background:'#fff', borderRadius:10, padding:'12px 14px',
+          boxShadow:'0 1px 8px rgba(40,56,152,0.07)',
+          borderTop:`3px solid ${P}`
+        }}>
+          <div style={{ fontSize:11, color:GR, marginBottom:4 }}>{t.committed}</div>
+          <div style={{ fontSize:22, fontWeight:'bold', color:P }}>{fmtM(committed)}</div>
+        </div>
+
+        {/* Restbudget für neue Aufträge */}
+        <div style={{
+          background:'#fff', borderRadius:10, padding:'12px 14px',
+          boxShadow:'0 1px 8px rgba(40,56,152,0.07)',
+          borderTop:`3px solid ${remaining >= 0 ? GN : RD}`
+        }}>
+          <div style={{ fontSize:11, color:GR, marginBottom:4 }}>
+            Restbudget / Kalan B&uuml;t&ccedil;e
+          </div>
+          <div style={{
+            fontSize:22, fontWeight:'bold',
+            color: remaining >= 0 ? GN : RD
+          }}>
+            {fmtM(remaining)}
+          </div>
+          {totalBudget === 0 && (
+            <div style={{ fontSize:10, color:YL, marginTop:2 }}>
+              ⚠️ Budget nicht gesetzt
+            </div>
+          )}
+        </div>
+
+        {/* Auslastung */}
+        <div style={{
+          background:'#fff', borderRadius:10, padding:'12px 14px',
+          boxShadow:'0 1px 8px rgba(40,56,152,0.07)',
+          borderTop:`3px solid ${barColor}`
+        }}>
+          <div style={{ fontSize:11, color:GR, marginBottom:4 }}>
+            Auslastung / Kullan&#305;m
+          </div>
+          <div style={{ fontSize:22, fontWeight:'bold', color:barColor }}>
+            {pct.toFixed(1)}%
+          </div>
         </div>
       </div>
+
+      {/* V17: Fortschrittsbalken */}
+      {totalBudget > 0 && (
+        <Card>
+          <div style={{
+            fontSize:12, color:GR, marginBottom:8,
+            display:'flex', justifyContent:'space-between'
+          }}>
+            <span>
+              {t.committed}: {committed.toLocaleString()} € von {totalBudget.toLocaleString()} €
+            </span>
+            <span style={{ fontWeight:'bold', color:barColor }}>
+              {pct.toFixed(1)}%
+            </span>
+          </div>
+          <div style={{
+            height:24, background:'#eef0f6',
+            borderRadius:10, overflow:'hidden'
+          }}>
+            <div style={{
+              height:'100%', width: pct + '%',
+              background: barColor,
+              borderRadius:10, transition:'width 0.5s',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              fontSize:11, fontWeight:'bold', color:'#fff'
+            }}>
+              {pct > 8 ? `${committed.toLocaleString()} €` : ''}
+            </div>
+          </div>
+          <div style={{
+            fontSize:11, color:GR, marginTop:6, fontStyle:'italic'
+          }}>
+            ℹ️ Budget wird im Budget-Modul gepflegt / Bütçe, Bütçe modülünde yönetilir
+          </div>
+        </Card>
+      )}
+
+      {totalBudget === 0 && (
+        <Card>
+          <div style={{
+            background: YL + '15', borderRadius:8, padding:'10px 14px',
+            fontSize:12, color:'#7a5500'
+          }}>
+            ⚠️ Gesamtbudget ist noch nicht gesetzt. Bitte im Budget-Modul festlegen.
+            <br/>
+            Toplam bütçe henüz belirlenmedi. Lütfen Bütçe modülünde ayarlayın.
+          </div>
+        </Card>
+      )}
 
       {show && canEdit && (
         <IForm title={`${t.add} ${t.contracts}`} onClose={() => setShow(false)}>
