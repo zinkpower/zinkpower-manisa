@@ -1,9 +1,13 @@
-// ZINKPOWER Manisa — App.jsx V14
-// Änderungen ggü. V13:
-// - Login-Sperre: nach 3 Fehlversuchen wird Account gesperrt (lockState in DB)
-// - Erfolgreicher Login löscht lockState-Eintrag
-// - Locked-User: Anzeige im Login-Screen, kein Passwort-Feld, deaktivierter Button
-// - ForcePasswordChange responsiv (Mobile: schmaler Container, größere Touch-Targets)
+// ZINKPOWER Manisa — App.jsx V19
+// Änderungen ggü. V18:
+// - "Noch X Versuche"-Countdown entfernt → kein Info-Leak mehr über Namens-Korrektheit
+// - Alle Fehler vor Lockout zeigen dieselbe generische Meldung
+// - Erst bei tatsächlich gesperrtem Konto wird das verraten (Leak ist dann harmlos,
+//   weil das Konto eh nicht mehr nutzbar ist)
+//
+// V18: Login: Namens-Dropdown entfernt → User tippt Vor- und Nachnamen selbst ein
+// V14: Login-Sperre nach 3 Fehlversuchen, mobile-optimierter ForcePasswordChange
+// V13: PBKDF2-Passwörter mit Force-Password-Change
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -13,7 +17,7 @@ import {
   getInit, useIsMobile,
   isLegacyPin, hashPassword, verifyPassword, validatePassword,
   MAX_LOGIN_ATTEMPTS, getLock,
-  Btn, Fi, Fs, PasswordRules,
+  Btn, Fi, PasswordRules,
 } from "./core.jsx";
 
 import Dashboard      from "./modules/Dashboard.jsx";
@@ -39,7 +43,20 @@ const supabase = createClient(
 );
 
 // ════════════════════════════════════════════════════════════════
-// LOGO + LANG-TOGGLE (für Login + ForcePasswordChange)
+// V18: Namen-Normalisierung für Login-Vergleich
+// - Trim + Multi-Whitespace zu einzelnem Space
+// - Lowercase mit Turkish-Locale (İ → i, I → ı)
+// - Türkische Sonderzeichen bleiben erhalten (Ş, Ö, Ü, ı, ç, ğ)
+// ════════════════════════════════════════════════════════════════
+function normalizeName(s) {
+  return (s || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('tr');
+}
+
+// ════════════════════════════════════════════════════════════════
+// LOGO + LANG-TOGGLE
 // ════════════════════════════════════════════════════════════════
 function Logo() {
   return (
@@ -86,25 +103,47 @@ function LangToggle({ lang, setLang }) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// LOGIN — V14 (mit Lock-Logik)
+// LOGIN — V18 (Namens-Eingabe statt Dropdown)
 // ════════════════════════════════════════════════════════════════
 function Login({ onLogin, onLoginFail, lang, setLang, t, allUsers, pins, lockState }) {
-  const [sel, setSel] = useState('');
-  const [pin, setPin] = useState('');
-  const [err, setErr] = useState('');
+  const [name, setName] = useState('');
+  const [pin,  setPin]  = useState('');
+  const [err,  setErr]  = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Lock-Status für gewählten User
-  const lock = sel ? getLock(lockState, sel) : null;
-  const isLocked = lock && lock.locked;
+  // Generische Fehlermeldung (bilingual, da Login-Screen ohnehin bilingual ist)
+  const ERR_GENERIC = 'Falsche Anmeldedaten / Yanlış giriş bilgileri';
+
+  function findUserByName(input) {
+    const norm = normalizeName(input);
+    if (!norm) return null;
+    return allUsers.find(u => normalizeName(u.name) === norm) || null;
+  }
 
   async function tryLogin() {
-    const u = allUsers.find(x => x.id === sel);
-    if (!u || !pin || isLocked) return;
-    setBusy(true);
+    if (!name || !pin || busy) return;
     setErr('');
 
-    const stored = pins[sel];
+    // 1. Nutzer per Namens-Normalisierung suchen
+    const u = findUserByName(name);
+    if (!u) {
+      // Generische Meldung — kein Lock-Counter, da Name unbekannt
+      setErr(ERR_GENERIC);
+      setPin('');
+      return;
+    }
+
+    // 2. Lock-Check
+    const lock = getLock(lockState, u.id);
+    if (lock.locked) {
+      setErr(t.err_locked);
+      setPin('');
+      return;
+    }
+
+    // 3. Passwort prüfen
+    setBusy(true);
+    const stored = pins[u.id];
     let ok = false;
     let mustChange = false;
 
@@ -116,26 +155,26 @@ function Login({ onLogin, onLoginFail, lang, setLang, t, allUsers, pins, lockSta
     }
 
     setBusy(false);
+
     if (ok) {
       onLogin(u, mustChange, pin);
     } else {
-      // Fehlversuch zählen
-      const newState = await onLoginFail(sel);
+      // V19: Kein Countdown mehr — würde verraten dass der Name korrekt ist.
+      // Lock-Counter läuft im Hintergrund weiter, nur die Anzeige ist generisch.
+      // Erst wenn das Konto tatsächlich gesperrt wird, wird das angezeigt
+      // (akzeptables Leak, da das Konto dann ohnehin gesperrt ist).
+      const newState = await onLoginFail(u.id);
       if (newState.locked) {
         setErr(t.err_locked_now);
-      } else if (newState.fails === MAX_LOGIN_ATTEMPTS - 1) {
-        setErr(t.err_attempts_1);
-      } else if (newState.fails === MAX_LOGIN_ATTEMPTS - 2) {
-        setErr(t.err_attempts_2);
       } else {
-        setErr(t.pw_err_wrong);
+        setErr(ERR_GENERIC);
       }
       setPin('');
     }
   }
 
   function onKeyDown(e) {
-    if (e.key === 'Enter' && sel && pin && !busy && !isLocked) tryLogin();
+    if (e.key === 'Enter' && name && pin && !busy) tryLogin();
   }
 
   return (
@@ -145,7 +184,7 @@ function Login({ onLogin, onLoginFail, lang, setLang, t, allUsers, pins, lockSta
     }}>
       <div
         style={{
-          background:'#fff', borderRadius:14, padding:36, width:310,
+          background:'#fff', borderRadius:14, padding:36, width:330,
           maxWidth:'100%', boxSizing:'border-box',
           boxShadow:'0 4px 24px rgba(40,56,152,0.15)'
         }}
@@ -161,42 +200,24 @@ function Login({ onLogin, onLoginFail, lang, setLang, t, allUsers, pins, lockSta
 
         <LangToggle lang={lang} setLang={setLang}/>
 
-        <Fs
-          label={t.sel}
-          value={sel}
-          onChange={v => { setSel(v); setPin(''); setErr(''); }}
-          opts={[
-            { v:'', l:`-- ${t.sel} --` },
-            ...allUsers.map(u => {
-              const ul = getLock(lockState, u.id);
-              return { v: u.id, l: ul.locked ? `🔒 ${u.name}` : u.name };
-            })
-          ]}
+        <Fi
+          label="Vor- und Nachname / Ad ve Soyad"
+          value={name}
+          onChange={v => { setName(v); setErr(''); }}
+          ph="z.B. Peter Siemund"
         />
 
-        {sel && isLocked && (
-          <div style={{
-            background: RD + '15', border:`1px solid ${RD}`,
-            borderRadius:8, padding:'10px 12px', marginBottom:10,
-            fontSize:12, color:RD, lineHeight:1.4
-          }}>
-            {t.err_locked}
-          </div>
-        )}
-
-        {sel && !isLocked && (
-          <Fi
-            label={t.pin_or_password}
-            value={pin}
-            onChange={v => { setPin(v); setErr(''); }}
-            type="password"
-          />
-        )}
+        <Fi
+          label={t.pin_or_password}
+          value={pin}
+          onChange={v => { setPin(v); setErr(''); }}
+          type="password"
+        />
 
         {err && <div style={{ color:RD, fontSize:12, marginBottom:6 }}>❌ {err}</div>}
 
         <div style={{ marginTop:8 }}>
-          <Btn disabled={!sel || !pin || busy || isLocked} onClick={tryLogin}>
+          <Btn disabled={!name || !pin || busy} onClick={tryLogin}>
             {busy ? t.pw_processing : t.login}
           </Btn>
         </div>
@@ -206,7 +227,7 @@ function Login({ onLogin, onLoginFail, lang, setLang, t, allUsers, pins, lockSta
 }
 
 // ════════════════════════════════════════════════════════════════
-// FORCE PASSWORD CHANGE — V14 (mobile-optimiert)
+// FORCE PASSWORD CHANGE — unverändert ggü. V14
 // ════════════════════════════════════════════════════════════════
 function ForcePasswordChange({
   user, pins, prefillOldPin, save,
@@ -252,7 +273,6 @@ function ForcePasswordChange({
 
   function onKeyDown(e) { if (e.key === 'Enter' && !busy) submit(); }
 
-  // Mobile-Touch-Target für Hauptbutton
   const submitDisabled = busy || !oldPin || !newPw || !newPw2;
   const submitBtnStyle = {
     width:'100%',
@@ -436,9 +456,7 @@ export default function App() {
     return urlData.publicUrl;
   }
 
-  // ── V14: Login-Callbacks mit Lock-State ──────────────────────
   function handleLogin(u, mustChange, oldPin) {
-    // Lock-State zurücksetzen bei erfolgreichem Login
     const current = data.lockState || {};
     if (current[u.id]) {
       const updated = { ...current };
@@ -460,7 +478,6 @@ export default function App() {
     return { fails, locked };
   }
 
-  // ── Eigenes Passwort ändern (im laufenden Login) ─────────────
   async function savePwSelf() {
     setPwErr(''); setPwBusy(true);
     try {
