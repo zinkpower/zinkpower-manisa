@@ -1,5 +1,12 @@
-// ZINKPOWER Manisa — modules/Issues.jsx V12
-// Fix: uploadFile prop + folder="issues"
+// ZINKPOWER Manisa — modules/Issues.jsx V19
+// V19: Vier-Augen-Prinzip beim Mangel-Abschluss
+//      - Neuer Zwischenstatus 'review' (Zur Prüfung gemeldet / Kontrole hazır)
+//      - Nicht-Admins können nur open → review melden ("Fertig gemeldet")
+//      - NUR Admin kann review → resolved abschließen (nach eigener Prüfung)
+//      - Admin kann review → open zurückweisen (Mangel nicht wirklich behoben)
+//      - Admin kann resolved → open wieder öffnen
+//      - Drei Abschnitte: Offen (rot) / Zur Prüfung (gelb) / Beseitigt (grün)
+// V12: uploadFile prop + folder="issues"
 import { useState } from "react";
 import {
   P, GR, LT, GN, YL, RD,
@@ -14,6 +21,7 @@ export default function Issues({ data, save, uploadFile, user, t }) {
 
   const allU     = [...CORE, ...(data.extraUsers || [])];
   const contacts = data.contacts || [];
+  const isAdmin  = user.role === 'admin';
 
   const ef = {
     title:'', desc:'', priority:'medium',
@@ -50,11 +58,45 @@ export default function Issues({ data, save, uploadFile, user, t }) {
     setEditId(item.id); setShow(true);
   }
 
-  function setStatus(id, status) {
+  // V19: Status-Übergänge mit Berechtigungs-Logik
+  // open → review: jeder (Bearbeiter meldet Fertigstellung)
+  function reportDone(id) {
     const u = items.map(i => i.id === id ? {
-      ...i, status,
-      resolvedBy:   status === 'resolved' ? user.name : undefined,
-      resolvedDate: status === 'resolved' ? new Date().toISOString().split('T')[0] : undefined
+      ...i, status:'review',
+      reportedBy:   user.name,
+      reportedDate: new Date().toISOString().split('T')[0]
+    } : i);
+    setItems(u); save('issues', u);
+  }
+
+  // review → resolved: NUR Admin (nach Prüfung)
+  function confirmResolved(id) {
+    if (!isAdmin) return;
+    const u = items.map(i => i.id === id ? {
+      ...i, status:'resolved',
+      resolvedBy:   user.name,
+      resolvedDate: new Date().toISOString().split('T')[0]
+    } : i);
+    setItems(u); save('issues', u);
+  }
+
+  // review → open: NUR Admin (Zurückweisung)
+  function rejectReview(id) {
+    if (!isAdmin) return;
+    const u = items.map(i => i.id === id ? {
+      ...i, status:'open',
+      reportedBy: undefined, reportedDate: undefined
+    } : i);
+    setItems(u); save('issues', u);
+  }
+
+  // resolved → open: NUR Admin
+  function reopen(id) {
+    if (!isAdmin) return;
+    const u = items.map(i => i.id === id ? {
+      ...i, status:'open',
+      reportedBy: undefined, reportedDate: undefined,
+      resolvedBy: undefined, resolvedDate: undefined
     } : i);
     setItems(u); save('issues', u);
   }
@@ -86,6 +128,7 @@ export default function Issues({ data, save, uploadFile, user, t }) {
   }
 
   const open     = items.filter(i => i.status === 'open');
+  const review   = items.filter(i => i.status === 'review');
   const resolved = items.filter(i => i.status === 'resolved');
 
   function renderAssignedContacts(item) {
@@ -222,6 +265,7 @@ export default function Issues({ data, save, uploadFile, user, t }) {
         </IForm>
       )}
 
+      {/* ══════════ OFFEN ══════════ */}
       {open.length > 0 && (
         <div style={{ marginBottom:8 }}>
           <div style={{
@@ -229,7 +273,7 @@ export default function Issues({ data, save, uploadFile, user, t }) {
             padding:'6px 10px', background: RD + '15', borderRadius:8
           }}>
             <span style={{ width:10, height:10, borderRadius:'50%', background:RD, display:'inline-block' }}/>
-            <b style={{ fontSize:13, color:RD }}>Mängel offen</b>
+            <b style={{ fontSize:13, color:RD }}>Mängel offen / Açık</b>
             <span style={{ fontSize:12, color:RD }}>({open.length})</span>
           </div>
           {open.map(item => (
@@ -266,7 +310,15 @@ export default function Issues({ data, save, uploadFile, user, t }) {
                   display:'flex', flexDirection:'column', gap:6
                 }}>
                   <Btn sm outline onClick={() => openEdit(item)}>✏️ {t.edit}</Btn>
-                  <Btn sm col={GN} onClick={() => setStatus(item.id, 'resolved')}>✓ Beseitigt</Btn>
+                  {/* V19: Nicht-Admin meldet nur, Admin kann direkt abschließen */}
+                  <Btn sm col={YL} onClick={() => reportDone(item.id)}>
+                    📣 Fertig gemeldet
+                  </Btn>
+                  {isAdmin && (
+                    <Btn sm col={GN} onClick={() => confirmResolved(item.id)}>
+                      ✓ Beseitigt
+                    </Btn>
+                  )}
                 </div>
               </div>
             </Card>
@@ -274,6 +326,73 @@ export default function Issues({ data, save, uploadFile, user, t }) {
         </div>
       )}
 
+      {/* ══════════ ZUR PRÜFUNG ══════════ */}
+      {review.length > 0 && (
+        <div style={{ marginBottom:8 }}>
+          <div style={{
+            display:'flex', alignItems:'center', gap:8, marginBottom:8,
+            padding:'6px 10px', background: YL + '15', borderRadius:8
+          }}>
+            <span style={{ width:10, height:10, borderRadius:'50%', background:YL, display:'inline-block' }}/>
+            <b style={{ fontSize:13, color:'#8a6300' }}>Zur Prüfung / Kontrole hazır</b>
+            <span style={{ fontSize:12, color:'#8a6300' }}>({review.length})</span>
+          </div>
+          {review.map(item => (
+            <Card key={item.id}>
+              <div style={{ display:'flex', justifyContent:'space-between' }}>
+                <div style={{ flex:1 }}>
+                  <div style={{
+                    display:'flex', alignItems:'center', gap:8,
+                    marginBottom:4, flexWrap:'wrap'
+                  }}>
+                    <span style={{
+                      padding:'2px 8px', background: YL + '25', color: YL,
+                      borderRadius:6, fontSize:11, fontWeight:'bold'
+                    }}>⏳ Prüfung / Kontrol</span>
+                    <b style={{ color:P, fontSize:13 }}>{item.title}</b>
+                  </div>
+                  {item.desc && <div style={{ fontSize:12, color:GR, marginBottom:3 }}>{item.desc}</div>}
+                  <div style={{ fontSize:11, color:GR }}>
+                    📅 {item.date} · 👤 {item.by}
+                    {item.assigned ? ` · → ${item.assigned}` : ''}
+                  </div>
+                  {item.reportedBy && (
+                    <div style={{ fontSize:11, color:'#8a6300', marginTop:3, fontWeight:'bold' }}>
+                      📣 Fertig gemeldet von {item.reportedBy} ({item.reportedDate})
+                    </div>
+                  )}
+                  <Thumbs photos={item.photos}/>
+                  {renderAssignedContacts(item)}
+                </div>
+                <div style={{
+                  marginLeft:12, flexShrink:0,
+                  display:'flex', flexDirection:'column', gap:6
+                }}>
+                  {isAdmin ? (
+                    <>
+                      <Btn sm col={GN} onClick={() => confirmResolved(item.id)}>
+                        ✓ Geprüft &amp; beseitigt
+                      </Btn>
+                      <Btn sm danger onClick={() => rejectReview(item.id)}>
+                        ↩ Zurückweisen
+                      </Btn>
+                    </>
+                  ) : (
+                    <div style={{
+                      fontSize:10, color:GR, textAlign:'right',
+                      maxWidth:120, fontStyle:'italic'
+                    }}>
+                      Wartet auf Admin-Prüfung / Yönetici kontrolü bekleniyor
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* ══════════ BESEITIGT ══════════ */}
       {resolved.length > 0 && (
         <div>
           <div style={{
@@ -281,7 +400,7 @@ export default function Issues({ data, save, uploadFile, user, t }) {
             padding:'6px 10px', background: GN + '15', borderRadius:8
           }}>
             <span style={{ width:10, height:10, borderRadius:'50%', background:GN, display:'inline-block' }}/>
-            <b style={{ fontSize:13, color:GN }}>Mängel beseitigt</b>
+            <b style={{ fontSize:13, color:GN }}>Mängel beseitigt / Giderildi</b>
             <span style={{ fontSize:12, color:GN }}>({resolved.length})</span>
           </div>
           {resolved.map(item => (
@@ -298,13 +417,16 @@ export default function Issues({ data, save, uploadFile, user, t }) {
                   {item.desc && <div style={{ fontSize:12, color:GR, marginBottom:3 }}>{item.desc}</div>}
                   <div style={{ fontSize:11, color:GR }}>
                     📅 {item.date} · 👤 {item.by}
+                    {item.reportedBy ? ` · 📣 ${item.reportedBy} (${item.reportedDate})` : ''}
                     {item.resolvedBy ? ` · ✓ ${item.resolvedBy} (${item.resolvedDate})` : ''}
                   </div>
                   <Thumbs photos={item.photos}/>
                 </div>
-                <div style={{ marginLeft:12, flexShrink:0 }}>
-                  <Btn sm outline onClick={() => setStatus(item.id, 'open')}>↩ Wieder öffnen</Btn>
-                </div>
+                {isAdmin && (
+                  <div style={{ marginLeft:12, flexShrink:0 }}>
+                    <Btn sm outline onClick={() => reopen(item.id)}>↩ Wieder öffnen</Btn>
+                  </div>
+                )}
               </div>
             </Card>
           ))}
