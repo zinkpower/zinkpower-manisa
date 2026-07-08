@@ -1,12 +1,12 @@
-// ZINKPOWER Manisa — App.jsx V19
-// Änderungen ggü. V18:
-// - "Noch X Versuche"-Countdown entfernt → kein Info-Leak mehr über Namens-Korrektheit
-// - Alle Fehler vor Lockout zeigen dieselbe generische Meldung
-// - Erst bei tatsächlich gesperrtem Konto wird das verraten (Leak ist dann harmlos,
-//   weil das Konto eh nicht mehr nutzbar ist)
-//
-// V18: Login: Namens-Dropdown entfernt → User tippt Vor- und Nachnamen selbst ein
-// V14: Login-Sperre nach 3 Fehlversuchen, mobile-optimierter ForcePasswordChange
+// ZINKPOWER Manisa — App.jsx V20
+// V20: Größere Navigations-Icons (Emojis bleiben, keine neue Bibliothek nötig)
+//      - Desktop-Sidebar: 24px Icons (vorher 15px), Label 13px, Zeilen höher
+//      - Mobile-Menü-Grid: 26px Icons (vorher 20px)
+//      - Aktiver Menüpunkt zusätzlich fett
+//      - KEIN npm install nötig — reine Größenanpassung
+// V19: Generische Login-Fehlermeldungen (kein Info-Leak)
+// V18: Login per Namenseingabe statt Dropdown
+// V14: Login-Sperre nach 3 Fehlversuchen
 // V13: PBKDF2-Passwörter mit Force-Password-Change
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -728,7 +728,7 @@ export default function App() {
                       borderRadius:8, margin:4
                     }}
                   >
-                    <div style={{ fontSize:20, position:'relative', display:'inline-block' }}>
+                    <div style={{ fontSize:26, position:'relative', display:'inline-block' }}>
                       {n.i}
                       {n.badge && <span style={{
                         position:'absolute', top:-2, right:-6,
@@ -736,7 +736,7 @@ export default function App() {
                         border:'2px solid '+P
                       }}/>}
                     </div>
-                    <div style={{ fontSize:9, color:'rgba(255,255,255,0.85)', marginTop:2, lineHeight:1.2 }}>{n.l}</div>
+                    <div style={{ fontSize:10, color:'rgba(255,255,255,0.85)', marginTop:3, lineHeight:1.2 }}>{n.l}</div>
                   </div>
                 ))}
               </div>
@@ -785,8 +785,8 @@ export default function App() {
             borderBottom:'1px solid #eee',
             display:'flex', alignItems:'center', gap:8
           }}>
-            <span style={{ fontSize:18 }}>{nav.find(n => n.id === mod)?.i}</span>
-            <span style={{ fontWeight:'bold', color:P, fontSize:14 }}>{nav.find(n => n.id === mod)?.l}</span>
+            <span style={{ fontSize:22 }}>{nav.find(n => n.id === mod)?.i}</span>
+            <span style={{ fontWeight:'bold', color:P, fontSize:15 }}>{nav.find(n => n.id === mod)?.l}</span>
           </div>
 
           <div style={{ flex:1, overflowY:'auto', padding:12 }}>
@@ -833,14 +833,14 @@ export default function App() {
                 key={n.id}
                 onClick={() => setMod(n.id)}
                 style={{
-                  padding:'9px 10px',
-                  display:'flex', alignItems:'center', gap:8, cursor:'pointer',
+                  padding:'11px 10px',
+                  display:'flex', alignItems:'center', gap:10, cursor:'pointer',
                   background: mod === n.id ? 'rgba(255,255,255,0.18)' : 'transparent',
                   borderLeft: mod === n.id ? '3px solid #fff' : '3px solid transparent',
                   overflow:'hidden'
                 }}
               >
-                <span style={{ fontSize:15, flexShrink:0, position:'relative', display:'inline-block' }}>
+                <span style={{ fontSize:24, flexShrink:0, position:'relative', display:'inline-block', lineHeight:1 }}>
                   {n.i}
                   {n.badge && <span style={{
                     position:'absolute', top:-3, right:-5,
@@ -848,7 +848,11 @@ export default function App() {
                     border:'1.5px solid '+P
                   }}/>}
                 </span>
-                {sideOpen && <span style={{ fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{n.l}</span>}
+                {sideOpen && <span style={{
+                  fontSize:13, whiteSpace:'nowrap',
+                  overflow:'hidden', textOverflow:'ellipsis',
+                  fontWeight: mod === n.id ? 'bold' : 'normal'
+                }}>{n.l}</span>}
               </div>
             ))}
           </div>
